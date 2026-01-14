@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>noa</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.mariosumali.noa</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>noa</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>noa needs microphone access to listen to your voice commands.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>noa needs screen capture access to see and analyze what's on your screen when you ask.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>noa needs accessibility access to detect keyboard shortcuts.</string>
+</dict>
+</plist>
