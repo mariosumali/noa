@@ -14,7 +14,7 @@ class AppState: ObservableObject {
     @Published var transcribedText: String = ""
     @Published var aiResponse: String = ""
     @Published var userId: String?
-    @Published var deviceId: String = UUID().uuidString
+    @Published var deviceId: String
     @Published var showLoginWindow: Bool = false
     @Published var showSettingsWindow: Bool = false
     @Published var showHistoryWindow: Bool = false
@@ -24,32 +24,32 @@ class AppState: ObservableObject {
     @Published var apiError: String?
 
     private var audioRecorder = AudioRecorder()
-    private var apiClient = APIClient()
-    private var cancellables = Set<AnyCancellable>()
+    private var apiClient: APIClient { APIClient.shared }
     private var waveformTimer: Timer?
 
     init() {
+        // Use APIClient's device ID
+        self.deviceId = apiClient.getDeviceId()
+        
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
             self.deviceId = savedDeviceId
         } else {
             UserDefaults.standard.set(self.deviceId, forKey: "deviceId")
         }
-        
-        audioRecorder.$isRecording
-            .assign(to: \.isRecordingAudio, on: self)
-            .store(in: &cancellables)
     }
 
     func startListening() {
         uiMode = .listening
         transcribedText = ""
         aiResponse = ""
+        isRecordingAudio = true
         startWaveformAnimation()
         audioRecorder.startRecording()
     }
 
     func stopListening() {
         uiMode = .processing
+        isRecordingAudio = false
         stopWaveformAnimation()
         
         audioRecorder.stopRecording { [weak self] audioData in
@@ -63,8 +63,10 @@ class AppState: ObservableObject {
                 return
             }
             
-            self.isProcessingAPI = true
-            self.apiError = nil
+            DispatchQueue.main.async {
+                self.isProcessingAPI = true
+                self.apiError = nil
+            }
 
             Task {
                 do {
