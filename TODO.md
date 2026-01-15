@@ -104,7 +104,7 @@
 - [x] Better error messages
 - [x] Set Password for Google accounts
 - [ ] Keyboard shortcuts in web app
-- [ ] Dark mode toggle
+- [x] Dark mode toggle
 - [ ] Notification sounds
 
 ### Features
