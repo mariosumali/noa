@@ -7,16 +7,20 @@ struct OverlayView: View {
     @State private var animationTimer: Timer?
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
+            Spacer()
+            
             // Response panel (above the pill)
             if appState.mode == .responding || appState.mode == .processing {
                 responsePanel
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .padding(.bottom, 10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
             
-            // Small pill at the bottom
+            // Small pill - always at the bottom, fixed position
             pillView
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.mode)
         .onChange(of: appState.mode) { oldValue, newValue in
             if newValue == .listening {
@@ -29,7 +33,7 @@ struct OverlayView: View {
     
     // MARK: - Response Panel
     private var responsePanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             if appState.mode == .processing {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -40,7 +44,7 @@ struct OverlayView: View {
                         .foregroundColor(.white.opacity(0.7))
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
             } else if appState.mode == .responding {
                 // User's question
                 if !appState.transcribedText.isEmpty {
@@ -55,7 +59,7 @@ struct OverlayView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(12)
+                    .lineLimit(15)
             }
             
             // Error message
@@ -65,36 +69,33 @@ struct OverlayView: View {
                     .foregroundColor(.red.opacity(0.9))
             }
         }
-        .padding(16)
-        .frame(maxWidth: 360, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .frame(width: 420, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.85))
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                )
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.88))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+        .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
     }
     
-    // MARK: - Small Pill
+    // MARK: - Small Pill (fixed position)
     private var pillView: some View {
         Group {
             if appState.mode == .listening {
                 // Expanded pill with waveform
                 HStack(spacing: 2) {
-                    ForEach(0..<12, id: \.self) { i in
+                    ForEach(0..<14, id: \.self) { i in
                         WaveformBar(index: i, phase: waveformPhase)
                     }
                 }
-                .frame(height: 16)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .frame(height: 18)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
                 .background(
                     Capsule()
                         .fill(Color.black.opacity(0.9))
@@ -107,14 +108,14 @@ struct OverlayView: View {
                 // Tiny idle pill
                 Capsule()
                     .fill(Color.black.opacity(0.85))
-                    .frame(width: 48, height: 16)
+                    .frame(width: 56, height: 20)
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
                     )
             }
         }
-        .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
+        .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
     }
     
     private func startWaveformAnimation() {
@@ -137,8 +138,8 @@ struct WaveformBar: View {
     let phase: CGFloat
     
     private var barHeight: CGFloat {
-        let baseHeight: CGFloat = 2
-        let maxHeight: CGFloat = 14
+        let baseHeight: CGFloat = 3
+        let maxHeight: CGFloat = 16
         let frequency = 0.7
         let phaseOffset = CGFloat(index) * 0.4
         
@@ -163,6 +164,6 @@ struct WaveformBar: View {
 
 #Preview {
     OverlayView()
-        .frame(width: 400, height: 300)
+        .frame(width: 500, height: 400)
         .background(Color.gray)
 }
