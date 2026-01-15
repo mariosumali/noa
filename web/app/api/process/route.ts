@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { processPrompt, processPromptWithScreen, processPromptWithContext } from '@/lib/openai'
-import { 
-  isGmailQuery, 
-  getUnreadEmails, 
-  searchEmails, 
-  getEmailsFrom, 
+import {
+  isGmailQuery,
+  getUnreadEmails,
+  searchEmails,
+  getEmailsFrom,
   getImportantEmails,
   getUnreadCount,
   formatEmailsForContext,
@@ -30,20 +30,14 @@ export async function POST(request: NextRequest) {
     // Check if this is a Gmail query and user has Gmail connected
     if (user_id && isGmailQuery(text)) {
       console.log('Gmail query detected, fetching email context...')
-      
+
       try {
         // Determine what type of email query this is
         const lowercased = text.toLowerCase()
-        let emails = []
-        
-        // Check for specific sender
-        const sender = extractSenderFromQuery(text)
-        if (sender) {
-          console.log(`Searching emails from: ${sender}`)
-          emails = await getEmailsFrom(user_id, sender, 5)
-        }
-        // Check for unread
-        else if (lowercased.includes('unread') || lowercased.includes('new email') || lowercased.includes('new message')) {
+        let emails: Awaited<ReturnType<typeof getUnreadEmails>> = []
+
+        // Check for unread first (most common query)
+        if (lowercased.includes('unread') || lowercased.includes('new email') || lowercased.includes('new message') || lowercased.includes('how many')) {
           const unreadCount = await getUnreadCount(user_id)
           emails = await getUnreadEmails(user_id, 5)
           emailContext = `You have ${unreadCount} unread emails.\n\nRecent unread:\n${formatEmailsForContext(emails)}`
@@ -60,9 +54,16 @@ export async function POST(request: NextRequest) {
             emails = await searchEmails(user_id, searchMatch[1], 5)
           }
         }
-        // Default: get recent unread
+        // Check for specific sender (only if not matching above patterns)
         else {
-          emails = await getUnreadEmails(user_id, 5)
+          const sender = extractSenderFromQuery(text)
+          if (sender) {
+            console.log(`Searching emails from: ${sender}`)
+            emails = await getEmailsFrom(user_id, sender, 5)
+          } else {
+            // Default: get recent unread
+            emails = await getUnreadEmails(user_id, 5)
+          }
         }
 
         if (!emailContext && emails.length > 0) {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
         } else if (!emailContext) {
           emailContext = 'No matching emails found.'
         }
-        
+
         console.log(`Email context prepared: ${emails.length} emails`)
       } catch (gmailError) {
         console.error('Gmail fetch error:', gmailError)
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
       if (user_id) {
         insertData.user_id = user_id
       }
-      
+
       if (device_id) {
         insertData.device_id = device_id
       } else if (!user_id) {
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to save prompt:', dbError)
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       response,
       prompt_id: promptId
     })
