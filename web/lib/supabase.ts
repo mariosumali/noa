@@ -32,7 +32,8 @@ export interface User {
 
 export interface Prompt {
   id: string
-  user_id: string
+  user_id: string | null
+  device_id: string | null
   text: string
   response: string | null
   screenshot_url: string | null

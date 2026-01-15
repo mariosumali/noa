@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
-    const { user_id, text, screenshot } = body
+    const { user_id, device_id, text, screenshot } = body
 
     if (!text) {
       return NextResponse.json({ error: 'text is required' }, { status: 400 })
@@ -22,23 +22,49 @@ export async function POST(request: NextRequest) {
       response = await processPrompt(text)
     }
 
-    // Save to database if user_id provided
+    // Always save to database (use device_id if no user_id)
     let promptId: string | null = null
-    if (user_id) {
+    try {
+      const insertData: {
+        text: string
+        response: string
+        screenshot_url: string | null
+        user_id?: string
+        device_id?: string
+      } = {
+        text,
+        response,
+        screenshot_url: screenshot ? 'screenshot_included' : null,
+      }
+
+      if (user_id) {
+        insertData.user_id = user_id
+      }
+      
+      // Use device_id for anonymous tracking, or generate from request
+      if (device_id) {
+        insertData.device_id = device_id
+      } else if (!user_id) {
+        // Generate a device ID from request headers as fallback
+        const ip = request.headers.get('x-forwarded-for') || 'unknown'
+        const userAgent = request.headers.get('user-agent') || 'unknown'
+        insertData.device_id = `anon_${Buffer.from(ip + userAgent).toString('base64').slice(0, 20)}`
+      }
+
       const { data: prompt, error } = await supabase
         .from('prompts')
-        .insert({
-          user_id,
-          text,
-          response,
-          screenshot_url: screenshot ? 'screenshot_included' : null,
-        })
+        .insert(insertData)
         .select('id')
         .single()
 
-      if (!error && prompt) {
+      if (error) {
+        console.error('Database error:', error)
+      } else if (prompt) {
         promptId = prompt.id
       }
+    } catch (dbError) {
+      console.error('Failed to save prompt:', dbError)
+      // Continue - don't fail the response just because DB save failed
     }
 
     return NextResponse.json({ 

@@ -1,16 +1,40 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/utils'
 
 export default async function HistoryPage() {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabaseAuth = await createSupabaseServerClient()
+  const supabaseAdmin = createServerSupabaseClient()
+  
+  const { data: { user } } = await supabaseAuth.auth.getUser()
 
-  const { data: prompts } = await supabase
-    .from('prompts')
-    .select('*')
-    .eq('user_id', user?.id)
-    .order('created_at', { ascending: false })
-    .limit(50)
+  // Fetch prompts - for now, fetch all prompts for this user OR all device prompts
+  // In production, you'd link devices to users
+  let prompts = null
+  
+  if (user) {
+    // First try to get user's prompts
+    const { data: userPrompts } = await supabaseAdmin
+      .from('prompts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    
+    // Also get device prompts (prompts without user_id)
+    const { data: devicePrompts } = await supabaseAdmin
+      .from('prompts')
+      .select('*')
+      .is('user_id', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    
+    // Combine and sort
+    const allPrompts = [...(userPrompts || []), ...(devicePrompts || [])]
+    prompts = allPrompts
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50)
+  }
 
   return (
     <div className="max-w-4xl">
@@ -44,6 +68,11 @@ export default async function HistoryPage() {
                     {prompt.screenshot_url && (
                       <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                         Screen capture
+                      </span>
+                    )}
+                    {prompt.device_id && !prompt.user_id && (
+                      <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
+                        Desktop
                       </span>
                     )}
                   </div>

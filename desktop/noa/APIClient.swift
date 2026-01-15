@@ -1,4 +1,5 @@
 import Foundation
+import IOKit
 
 struct TranscriptionResponse: Codable {
     let text: String
@@ -9,16 +10,48 @@ class APIClient {
     
     private var baseURL: String { Config.shared.backendURL }
     private var openAIKey: String { Config.shared.openAIKey }
+    private let deviceId: String
     
     private init() {
-        print("APIClient initialized with key: \(openAIKey.prefix(20))...")
+        // Generate a persistent device ID
+        deviceId = APIClient.getDeviceId()
+        print("APIClient initialized with device: \(deviceId)")
+    }
+    
+    /// Get a unique device identifier
+    private static func getDeviceId() -> String {
+        // Try to get hardware UUID
+        let platformExpert = IOServiceGetMatchingService(
+            kIOMainPortDefault,
+            IOServiceMatching("IOPlatformExpertDevice")
+        )
+        
+        defer { IOObjectRelease(platformExpert) }
+        
+        if let uuid = IORegistryEntryCreateCFProperty(
+            platformExpert,
+            kIOPlatformUUIDKey as CFString,
+            kCFAllocatorDefault,
+            0
+        )?.takeRetainedValue() as? String {
+            return "mac_\(uuid.prefix(16))"
+        }
+        
+        // Fallback to a generated ID stored in UserDefaults
+        let key = "noa_device_id"
+        if let stored = UserDefaults.standard.string(forKey: key) {
+            return stored
+        }
+        
+        let newId = "mac_\(UUID().uuidString.prefix(16))"
+        UserDefaults.standard.set(newId, forKey: key)
+        return newId
     }
     
     /// Process audio and optional screenshot through the backend
     func process(audioData: Data, screenshot: String?) async throws -> (transcribedText: String, response: String) {
         print("APIClient: Starting process...")
         print("APIClient: Audio data size: \(audioData.count) bytes")
-        print("APIClient: Using API key: \(openAIKey.prefix(20))...")
         
         // Step 1: Transcribe audio using Whisper API directly
         let transcribedText = try await transcribeAudio(audioData)
@@ -110,7 +143,10 @@ class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
         
-        var body: [String: Any] = ["text": text]
+        var body: [String: Any] = [
+            "text": text,
+            "device_id": deviceId
+        ]
         if let screenshot = screenshot {
             body["screenshot"] = screenshot
             print("APIClient: Including screenshot")
@@ -138,6 +174,7 @@ class APIClient {
         }
         
         let backendResponse = try JSONDecoder().decode(BackendResponse.self, from: data)
+        print("APIClient: Saved prompt with ID: \(backendResponse.prompt_id ?? "none")")
         return backendResponse.response
     }
 }
