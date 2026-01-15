@@ -167,6 +167,138 @@ export async function createEvent(
     return response.data
 }
 
+// Update an existing event
+export async function updateEvent(
+    userId: string,
+    eventId: string,
+    updates: {
+        summary?: string
+        description?: string
+        startTime?: Date
+        endTime?: Date
+        location?: string
+    }
+): Promise<calendar_v3.Schema$Event> {
+    const calendar = await getCalendarClient(userId)
+
+    // First get the existing event
+    const existing = await calendar.events.get({
+        calendarId: 'primary',
+        eventId: eventId,
+    })
+
+    const updatedEvent: calendar_v3.Schema$Event = {
+        ...existing.data,
+        summary: updates.summary ?? existing.data.summary,
+        description: updates.description ?? existing.data.description,
+        location: updates.location ?? existing.data.location,
+    }
+
+    if (updates.startTime) {
+        updatedEvent.start = {
+            dateTime: updates.startTime.toISOString(),
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
+    }
+
+    if (updates.endTime) {
+        updatedEvent.end = {
+            dateTime: updates.endTime.toISOString(),
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
+    }
+
+    const response = await calendar.events.update({
+        calendarId: 'primary',
+        eventId: eventId,
+        requestBody: updatedEvent,
+    })
+
+    return response.data
+}
+
+// Delete an event
+export async function deleteEvent(
+    userId: string,
+    eventId: string
+): Promise<void> {
+    const calendar = await getCalendarClient(userId)
+
+    await calendar.events.delete({
+        calendarId: 'primary',
+        eventId: eventId,
+    })
+}
+
+// Move an event to a new time
+export async function moveEvent(
+    userId: string,
+    eventId: string,
+    newStartTime: Date,
+    newEndTime: Date
+): Promise<calendar_v3.Schema$Event> {
+    return updateEvent(userId, eventId, {
+        startTime: newStartTime,
+        endTime: newEndTime,
+    })
+}
+
+// Find events by title/summary
+export async function findEventsByTitle(
+    userId: string,
+    searchQuery: string,
+    days: number = 30
+): Promise<calendar_v3.Schema$Event[]> {
+    const calendar = await getCalendarClient(userId)
+
+    const now = new Date()
+    const future = new Date()
+    future.setDate(future.getDate() + days)
+
+    const response = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: now.toISOString(),
+        timeMax: future.toISOString(),
+        q: searchQuery,
+        maxResults: 20,
+        singleEvents: true,
+        orderBy: 'startTime',
+    })
+
+    return response.data.items || []
+}
+
+// Quick add event using natural language (Google's quick add feature)
+export async function quickAddEvent(
+    userId: string,
+    text: string
+): Promise<calendar_v3.Schema$Event> {
+    const calendar = await getCalendarClient(userId)
+
+    const response = await calendar.events.quickAdd({
+        calendarId: 'primary',
+        text: text, // e.g., "Meeting with John tomorrow at 3pm"
+    })
+
+    return response.data
+}
+
+// Get a single event by ID
+export async function getEvent(
+    userId: string,
+    eventId: string
+): Promise<calendar_v3.Schema$Event> {
+    const calendar = await getCalendarClient(userId)
+
+    const response = await calendar.events.get({
+        calendarId: 'primary',
+        eventId: eventId,
+    })
+
+    return response.data
+}
+
+
 // Parse natural language date from query
 // Returns date offset from today (0 = today, 1 = tomorrow, -1 = yesterday, etc.)
 export function parseDateFromQuery(text: string): { offset: number; label: string } | null {
