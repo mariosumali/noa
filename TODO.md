@@ -68,12 +68,33 @@
 - [x] Loading states
 - [x] Prompt persistence to Supabase
 
+### Phase 9: Desktop Enhancements
+- [x] X button to dismiss response
+- [x] Copy button for responses
+- [x] Auto-dismiss timer
+- [x] Configurable overlay position (bottom/top/left/right)
+- [x] Configurable overlay opacity
+- [x] Configurable hotkey (Option/Control/Command/Shift)
+- [x] Text-to-speech toggle
+- [x] "Write" command (transcribe → clipboard)
+- [x] Pill color customization
+- [x] Dark mode toggle on web
+
+### Phase 10: Gmail Integration
+- [x] Google OAuth credentials setup
+- [x] user_integrations database table
+- [x] Gmail API wrapper (lib/gmail.ts)
+- [x] OAuth connect/callback routes
+- [x] Gmail status API (connect/disconnect)
+- [x] Gmail query detection in /api/process
+- [x] Email context for AI responses
+- [x] Integrations UI in settings
+
 ---
 
 ## 🔄 In Progress
 
 - [ ] Screen capture permissions (requires Apple Developer Program for stable signing)
-- [ ] UI polish and animations
 
 ---
 

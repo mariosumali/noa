@@ -49,3 +49,48 @@ CREATE POLICY "Users can delete own prompts" ON prompts
 -- Migration: If table exists, add device_id column
 -- ALTER TABLE prompts ADD COLUMN IF NOT EXISTS device_id TEXT;
 -- ALTER TABLE prompts ALTER COLUMN user_id DROP NOT NULL;
+
+-- =============================================
+-- User Integrations (Gmail, Calendar, etc.)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS user_integrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  provider TEXT NOT NULL, -- 'gmail', 'calendar', 'slack', etc.
+  access_token TEXT,
+  refresh_token TEXT,
+  token_expires_at TIMESTAMP WITH TIME ZONE,
+  email TEXT, -- The connected account email
+  metadata JSONB DEFAULT '{}', -- Additional provider-specific data
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, provider)
+);
+
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS user_integrations_user_id_idx ON user_integrations(user_id);
+CREATE INDEX IF NOT EXISTS user_integrations_provider_idx ON user_integrations(provider);
+
+-- Enable Row Level Security
+ALTER TABLE user_integrations ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view their own integrations
+CREATE POLICY "Users can view own integrations" ON user_integrations
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Policy: Users can insert their own integrations
+CREATE POLICY "Users can insert own integrations" ON user_integrations
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can update their own integrations
+CREATE POLICY "Users can update own integrations" ON user_integrations
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Policy: Users can delete their own integrations
+CREATE POLICY "Users can delete own integrations" ON user_integrations
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Policy: Service role has full access (for token refresh)
+CREATE POLICY "Service role full access" ON user_integrations
+  FOR ALL USING (true);

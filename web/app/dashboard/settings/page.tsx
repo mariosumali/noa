@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import IntegrationsSection from '@/components/dashboard/IntegrationsSection'
 
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient()
@@ -13,6 +14,9 @@ export default async function SettingsPage() {
           Manage your account and preferences
         </p>
       </div>
+
+      {/* Integrations Section */}
+      <IntegrationsSection />
 
       {/* Account Section */}
       <section className="mb-8">
