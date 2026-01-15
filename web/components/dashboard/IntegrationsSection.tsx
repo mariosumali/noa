@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 interface GmailStatus {
   connected: boolean
@@ -13,9 +14,18 @@ export default function IntegrationsSection() {
   const [loading, setLoading] = useState(true)
   const [disconnecting, setDisconnecting] = useState(false)
 
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
   useEffect(() => {
     fetchGmailStatus()
-  }, [])
+
+    // Check for success param from redirect
+    if (searchParams.get('gmail') === 'connected') {
+      // Clear the param without refreshing
+      router.replace('/dashboard/settings')
+    }
+  }, [searchParams, router])
 
   async function fetchGmailStatus() {
     try {
@@ -62,9 +72,14 @@ export default function IntegrationsSection() {
                 {loading ? (
                   <p className="text-sm text-muted">Checking connection...</p>
                 ) : gmailStatus?.connected ? (
-                  <p className="text-sm text-green-600">
-                    Connected as {gmailStatus.email}
-                  </p>
+                  <div className="flex items-center gap-1.5 text-green-600">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm font-medium">
+                      Connected as {gmailStatus.email}
+                    </p>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted">
                     Ask noa about your emails
