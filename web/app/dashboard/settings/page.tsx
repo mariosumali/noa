@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import IntegrationsSection from '@/components/dashboard/IntegrationsSection'
+import SetPasswordSection from '@/components/dashboard/SetPasswordSection'
 
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient()
@@ -28,14 +29,14 @@ export default async function SettingsPage() {
               <p className="text-sm text-muted">{user?.email}</p>
             </div>
           </div>
-          
+
           <div className="px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Account ID</p>
               <p className="text-xs text-muted font-mono">{user?.id}</p>
             </div>
           </div>
-          
+
           <div className="px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Member since</p>
@@ -51,6 +52,9 @@ export default async function SettingsPage() {
         </div>
       </section>
 
+      {/* Set Password Section */}
+      <SetPasswordSection />
+
       {/* Desktop App Section */}
       <section className="mb-8">
         <h2 className="text-xs font-medium text-muted tracking-wide mb-3">DESKTOP APP</h2>
@@ -61,8 +65,8 @@ export default async function SettingsPage() {
                 <p className="text-sm font-medium">Download noa for Mac</p>
                 <p className="text-sm text-muted">Voice assistant for your desktop</p>
               </div>
-              <a 
-                href="https://github.com/mariosumali/noa/releases" 
+              <a
+                href="https://github.com/mariosumali/noa/releases"
                 target="_blank"
                 className="text-sm font-medium px-4 py-2 bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity"
               >
@@ -70,7 +74,7 @@ export default async function SettingsPage() {
               </a>
             </div>
           </div>
-          
+
           <div className="px-5 py-4">
             <p className="text-sm font-medium mb-1">Hotkey</p>
             <p className="text-sm text-muted">
