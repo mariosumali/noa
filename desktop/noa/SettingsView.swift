@@ -2,8 +2,8 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
+    @ObservedObject var settings = NoaSettings.shared
     @State private var launchAtLogin = false
-    @State private var hotkeyOption = true
     @State private var showOverlay = true
     @State private var backendURL = Config.shared.backendURL
     @State private var apiKeySet = !Config.shared.openAIKey.isEmpty
@@ -11,6 +11,75 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // Overlay Appearance
+                SettingsSection(title: "Overlay Appearance") {
+                    // Position
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Position")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Where the overlay appears on screen")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Picker("", selection: $settings.overlayPosition) {
+                            ForEach(OverlayPosition.allCases, id: \.self) { position in
+                                Text(position.displayName).tag(position)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 140)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    // Opacity
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Opacity")
+                                .font(.system(size: 13, weight: .medium))
+                            Spacer()
+                            Text("\(Int(settings.overlayOpacity * 100))%")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Slider(value: $settings.overlayOpacity, in: 0.3...1.0, step: 0.05)
+                        
+                        Text("Adjust the transparency of the response panel")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    // Auto-dismiss
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Auto-dismiss")
+                                .font(.system(size: 13, weight: .medium))
+                            Spacer()
+                            Text(settings.autoDismissSeconds == 0 ? "Never" : "\(Int(settings.autoDismissSeconds))s")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Slider(value: $settings.autoDismissSeconds, in: 0...60, step: 5)
+                        
+                        Text("How long the response stays visible (0 = never)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                
                 // General
                 SettingsSection(title: "General") {
                     SettingsToggle(
@@ -21,7 +90,7 @@ struct SettingsView: View {
                     
                     SettingsToggle(
                         title: "Show Overlay",
-                        description: "Show the floating pill at the bottom of the screen",
+                        description: "Show the floating pill on screen",
                         isOn: $showOverlay
                     )
                 }
@@ -116,7 +185,7 @@ struct SettingsView: View {
             }
             .padding(24)
         }
-        .frame(width: 450, height: 400)
+        .frame(width: 480, height: 580)
         .onAppear {
             loadSettings()
         }
@@ -130,7 +199,6 @@ struct SettingsView: View {
     private func openConfigFile() {
         let configPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".noa_config")
         
-        // Create file if it doesn't exist
         if !FileManager.default.fileExists(atPath: configPath.path) {
             let template = "OPENAI_API_KEY=your_key_here\nBACKEND_URL=http://localhost:3000\n"
             try? template.write(to: configPath, atomically: true, encoding: .utf8)

@@ -1,39 +1,141 @@
 import SwiftUI
 import Combine
+import AppKit
 
 struct OverlayView: View {
     @ObservedObject var appState = AppState.shared
+    @ObservedObject var settings = NoaSettings.shared
     @State private var waveformPhase: CGFloat = 0
     @State private var animationTimer: Timer?
+    @State private var dismissTimer: Timer?
+    @State private var showCopiedFeedback = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            
-            // Response panel (above the pill)
-            if appState.uiMode == .responding || appState.uiMode == .processing || appState.uiMode == .typing {
-                responsePanel
-                    .padding(.bottom, 10)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        Group {
+            switch settings.overlayPosition {
+            case .bottom:
+                bottomLayout
+            case .top:
+                topLayout
+            case .left:
+                leftLayout
+            case .right:
+                rightLayout
             }
-            
-            // Small pill - always at the bottom, fixed position
-            pillView
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.uiMode)
         .onChange(of: appState.uiMode) { newValue in
             if newValue == .listening {
                 startWaveformAnimation()
+                cancelDismissTimer()
+            } else if newValue == .responding {
+                stopWaveformAnimation()
+                startDismissTimer()
             } else {
                 stopWaveformAnimation()
+                cancelDismissTimer()
             }
         }
+    }
+    
+    // MARK: - Layouts
+    
+    private var bottomLayout: some View {
+        VStack(spacing: 10) {
+            Spacer()
+            if showResponsePanel {
+                responsePanel
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+            horizontalPillView
+        }
+        .padding(.bottom, 16)
+    }
+    
+    private var topLayout: some View {
+        VStack(spacing: 10) {
+            horizontalPillView
+            if showResponsePanel {
+                responsePanel
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+            Spacer()
+        }
+        .padding(.top, 16)
+    }
+    
+    private var leftLayout: some View {
+        HStack(spacing: 10) {
+            verticalPillView
+            if showResponsePanel {
+                responsePanel
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+            Spacer()
+        }
+        .frame(maxHeight: .infinity, alignment: .center)
+        .padding(.leading, 16)
+    }
+    
+    private var rightLayout: some View {
+        HStack(spacing: 10) {
+            Spacer()
+            if showResponsePanel {
+                responsePanel
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+            verticalPillView
+        }
+        .frame(maxHeight: .infinity, alignment: .center)
+        .padding(.trailing, 16)
+    }
+    
+    private var showResponsePanel: Bool {
+        appState.uiMode == .responding || appState.uiMode == .processing || appState.uiMode == .typing
     }
     
     // MARK: - Response Panel
     private var responsePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if appState.uiMode == .responding {
+                HStack {
+                    Spacer()
+                    
+                    Button(action: copyResponse) {
+                        HStack(spacing: 4) {
+                            Image(systemName: showCopiedFeedback ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 10))
+                            Text(showCopiedFeedback ? "Copied!" : "Copy")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(showCopiedFeedback ? .green : .white.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                    
+                    Button(action: dismiss) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                            .frame(width: 20, height: 20)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(10)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+            
             if appState.uiMode == .processing {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -46,25 +148,22 @@ struct OverlayView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
             } else if appState.uiMode == .typing {
-                // Typing mode indicator
                 HStack(spacing: 8) {
                     Image(systemName: "keyboard")
                         .foregroundColor(.green)
-                    Text("Typing...")
+                    Text("Copied to clipboard")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.green)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
                 
-                // Show what's being typed
                 Text(appState.aiResponse)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(5)
             } else if appState.uiMode == .responding {
-                // User's question
                 if !appState.transcribedText.isEmpty {
                     Text(appState.transcribedText)
                         .font(.system(size: 12))
@@ -72,15 +171,14 @@ struct OverlayView: View {
                         .lineLimit(2)
                 }
                 
-                // AI Response
                 Text(appState.aiResponse)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(15)
+                    .textSelection(.enabled)
             }
             
-            // Error message
             if let error = appState.apiError {
                 Text(error)
                     .font(.system(size: 11))
@@ -89,10 +187,10 @@ struct OverlayView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .frame(width: 420, alignment: .leading)
+        .frame(width: settings.overlayPosition.isVertical ? 380 : 420, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.black.opacity(0.88))
+                .fill(Color.black.opacity(settings.overlayOpacity))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -101,29 +199,21 @@ struct OverlayView: View {
         .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
     }
     
-    // MARK: - Small Pill (fixed position)
-    private var pillView: some View {
+    // MARK: - Horizontal Pill (for top/bottom)
+    private var horizontalPillView: some View {
         Group {
             if appState.uiMode == .listening {
-                // Expanded pill with waveform
                 HStack(spacing: 2) {
                     ForEach(0..<14, id: \.self) { i in
-                        WaveformBar(index: i, phase: waveformPhase)
+                        WaveformBar(index: i, phase: waveformPhase, isVertical: false)
                     }
                 }
                 .frame(height: 18)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(
-                    Capsule()
-                        .fill(Color.black.opacity(0.9))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
+                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
             } else if appState.uiMode == .typing {
-                // Typing pill (green accent)
                 HStack(spacing: 4) {
                     Image(systemName: "keyboard")
                         .font(.system(size: 10))
@@ -132,26 +222,91 @@ struct OverlayView: View {
                 .frame(height: 18)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(
-                    Capsule()
-                        .fill(Color.black.opacity(0.9))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color.green.opacity(0.3), lineWidth: 0.5)
-                )
+                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
             } else {
-                // Tiny idle pill
                 Capsule()
                     .fill(Color.black.opacity(0.85))
                     .frame(width: 56, height: 20)
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                    )
+                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+    }
+    
+    // MARK: - Vertical Pill (for left/right)
+    private var verticalPillView: some View {
+        Group {
+            if appState.uiMode == .listening {
+                VStack(spacing: 2) {
+                    ForEach(0..<10, id: \.self) { i in
+                        WaveformBar(index: i, phase: waveformPhase, isVertical: true)
+                    }
+                }
+                .frame(width: 18)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 7)
+                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+            } else if appState.uiMode == .typing {
+                VStack(spacing: 4) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 18)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 7)
+                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
+            } else {
+                Capsule()
+                    .fill(Color.black.opacity(0.85))
+                    .frame(width: 20, height: 56)
+                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+            }
+        }
+        .shadow(color: .black.opacity(0.25), radius: 8, x: 4)
+    }
+    
+    // MARK: - Actions
+    
+    private func dismiss() {
+        cancelDismissTimer()
+        appState.reset()
+    }
+    
+    private func copyResponse() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(appState.aiResponse, forType: .string)
+        
+        withAnimation {
+            showCopiedFeedback = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                showCopiedFeedback = false
+            }
+        }
+    }
+    
+    private func startDismissTimer() {
+        cancelDismissTimer()
+        let seconds = settings.autoDismissSeconds
+        guard seconds > 0 else { return }
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { _ in
+            DispatchQueue.main.async {
+                appState.reset()
+            }
+        }
+    }
+    
+    private func cancelDismissTimer() {
+        dismissTimer?.invalidate()
+        dismissTimer = nil
     }
     
     private func startWaveformAnimation() {
@@ -172,17 +327,18 @@ struct OverlayView: View {
 struct WaveformBar: View {
     let index: Int
     let phase: CGFloat
+    let isVertical: Bool
     
-    private var barHeight: CGFloat {
-        let baseHeight: CGFloat = 3
-        let maxHeight: CGFloat = 16
+    private var barSize: CGFloat {
+        let baseSize: CGFloat = 3
+        let maxSize: CGFloat = 16
         let frequency = 0.7
         let phaseOffset = CGFloat(index) * 0.4
         
         let wave = sin(phase * frequency + phaseOffset)
         let normalizedWave = (wave + 1) / 2
         
-        return baseHeight + (maxHeight - baseHeight) * normalizedWave
+        return baseSize + (maxSize - baseSize) * normalizedWave
     }
     
     var body: some View {
@@ -190,11 +346,14 @@ struct WaveformBar: View {
             .fill(
                 LinearGradient(
                     colors: [.white.opacity(0.9), .white.opacity(0.4)],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    startPoint: isVertical ? .leading : .top,
+                    endPoint: isVertical ? .trailing : .bottom
                 )
             )
-            .frame(width: 2, height: barHeight)
+            .frame(
+                width: isVertical ? barSize : 2,
+                height: isVertical ? 2 : barSize
+            )
     }
 }
 
