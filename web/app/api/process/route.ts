@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
     // Process with or without screenshot
     let response: string
     if (screenshot) {
+      console.log(`Processing with vision - text: "${text.substring(0, 50)}...", screenshot: ${Math.round(screenshot.length / 1024)}KB`)
       response = await processPromptWithScreen(text, screenshot)
     } else {
+      console.log(`Processing text only - "${text.substring(0, 50)}..."`)
       response = await processPrompt(text)
     }
 

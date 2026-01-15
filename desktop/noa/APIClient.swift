@@ -24,7 +24,6 @@ class APIClient {
     
     /// Get a unique device identifier
     private static func generateDeviceId() -> String {
-        // Try to get hardware UUID
         let platformExpert = IOServiceGetMatchingService(
             kIOMainPortDefault,
             IOServiceMatching("IOPlatformExpertDevice")
@@ -41,7 +40,6 @@ class APIClient {
             return "mac_\(uuid.prefix(16))"
         }
         
-        // Fallback to a generated ID stored in UserDefaults
         let key = "noa_device_id"
         if let stored = UserDefaults.standard.string(forKey: key) {
             return stored
@@ -52,28 +50,11 @@ class APIClient {
         return newId
     }
     
-    /// Process audio and optional screenshot through the backend
-    func process(audioData: Data, screenshot: String?) async throws -> (transcribedText: String, response: String) {
-        print("APIClient: Starting process...")
-        print("APIClient: Audio data size: \(audioData.count) bytes")
-        
-        // Step 1: Transcribe audio using Whisper API directly
-        let transcribedText = try await transcribeAudio(audioData)
-        print("APIClient: Transcribed text: \(transcribedText)")
-        
-        // Step 2: Send to backend for processing
-        let response = try await sendToBackend(text: transcribedText, screenshot: screenshot)
-        print("APIClient: Got response: \(response.prefix(100))...")
-        
-        return (transcribedText, response)
-    }
-    
     /// Transcribe audio using OpenAI Whisper API
-    private func transcribeAudio(_ audioData: Data) async throws -> String {
+    func transcribeAudio(_ audioData: Data) async throws -> String {
         print("APIClient: Transcribing audio with Whisper...")
         
         guard let url = URL(string: "https://api.openai.com/v1/audio/transcriptions") else {
-            print("APIClient: Invalid URL")
             throw APIError.transcriptionFailed
         }
         
@@ -82,60 +63,41 @@ class APIClient {
         request.setValue("Bearer \(openAIKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 30
         
-        // Create multipart form data
         let boundary = UUID().uuidString
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         
         var body = Data()
-        
-        // Add file field
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
         body.append(audioData)
         body.append("\r\n".data(using: .utf8)!)
-        
-        // Add model field
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
         body.append("whisper-1\r\n".data(using: .utf8)!)
-        
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         
         request.httpBody = body
         
-        print("APIClient: Sending \(body.count) bytes to Whisper API...")
+        let (data, response) = try await URLSession.shared.data(for: request)
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("APIClient: No HTTP response")
-                throw APIError.transcriptionFailed
-            }
-            
-            print("APIClient: Whisper response status: \(httpResponse.statusCode)")
-            
-            if httpResponse.statusCode != 200 {
-                let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-                print("APIClient: Whisper error: \(errorBody)")
-                throw APIError.transcriptionFailed
-            }
-            
-            let transcription = try JSONDecoder().decode(TranscriptionResponse.self, from: data)
-            return transcription.text
-        } catch let error as URLError {
-            print("APIClient: Network error: \(error.localizedDescription)")
-            throw APIError.networkError(error.localizedDescription)
-        } catch {
-            print("APIClient: Error: \(error)")
-            throw error
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.transcriptionFailed
         }
+        
+        if httpResponse.statusCode != 200 {
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("APIClient: Whisper error: \(errorBody)")
+            throw APIError.transcriptionFailed
+        }
+        
+        let transcription = try JSONDecoder().decode(TranscriptionResponse.self, from: data)
+        return transcription.text
     }
     
-    /// Send text and optional screenshot to backend
-    private func sendToBackend(text: String, screenshot: String?) async throws -> String {
-        print("APIClient: Sending to backend at \(baseURL)...")
+    /// Send text (and optional screenshot) to backend for AI processing
+    func processText(text: String, screenshot: String?) async throws -> String {
+        print("APIClient: Sending to backend...")
         
         guard let url = URL(string: "\(baseURL)/api/process") else {
             throw APIError.processingFailed
@@ -144,9 +106,8 @@ class APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 90 // Longer timeout for vision processing
         
-        // Include user_id if logged in
         var body: [String: Any] = [
             "text": text,
             "device_id": deviceId
@@ -158,6 +119,7 @@ class APIClient {
         
         if let screenshot = screenshot {
             body["screenshot"] = screenshot
+            print("APIClient: Including screenshot (\(screenshot.count / 1024) KB)")
         }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -167,8 +129,6 @@ class APIClient {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.processingFailed
         }
-        
-        print("APIClient: Backend response status: \(httpResponse.statusCode)")
         
         if httpResponse.statusCode != 200 {
             let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"

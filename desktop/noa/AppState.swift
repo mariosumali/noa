@@ -68,26 +68,44 @@ class AppState: ObservableObject {
     private func processAudio(_ audioData: Data) {
         Task {
             do {
-                print("AppState: Calling API...")
+                print("AppState: Transcribing audio...")
                 
-                // Skip screenshot for now - it was causing deadlock
-                let screenshot: String? = nil
+                // First, transcribe the audio to get the text
+                let transcribedText = try await APIClient.shared.transcribeAudio(audioData)
                 
-                // Send to API
-                let response = try await APIClient.shared.process(
-                    audioData: audioData,
+                await MainActor.run {
+                    self.transcribedText = transcribedText
+                }
+                
+                print("AppState: Transcribed: \(transcribedText)")
+                
+                // Check if we need to capture screen
+                var screenshot: String? = nil
+                if ScreenCapture.shouldCaptureScreen(for: transcribedText) {
+                    print("AppState: Screen-related query detected, capturing screen...")
+                    screenshot = await ScreenCapture.captureMainScreenAsync()
+                    if screenshot != nil {
+                        print("AppState: Screenshot captured successfully")
+                    } else {
+                        print("AppState: Screenshot capture failed (permission may be needed)")
+                    }
+                }
+                
+                // Send to backend for AI processing
+                print("AppState: Sending to backend...")
+                let response = try await APIClient.shared.processText(
+                    text: transcribedText,
                     screenshot: screenshot
                 )
                 
                 print("AppState: Got response!")
                 await MainActor.run {
-                    self.transcribedText = response.transcribedText
-                    self.responseText = response.response
+                    self.responseText = response
                     self.mode = .responding
                 }
                 
-                // Auto-hide after 15 seconds
-                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                // Auto-hide after 20 seconds
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
                 await MainActor.run {
                     if self.mode == .responding {
                         self.mode = .idle

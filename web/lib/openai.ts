@@ -5,6 +5,17 @@ export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
+// System prompt for noa
+const SYSTEM_PROMPT = `You are noa, a helpful personal AI assistant created by Mario Sumali. 
+You help users with questions about their digital life - calendar, emails, files, and more.
+Be concise, friendly, and helpful. Keep responses brief unless more detail is requested.
+When appropriate, use bullet points or short paragraphs for readability.`
+
+const VISION_SYSTEM_PROMPT = `You are noa, a helpful personal AI assistant created by Mario Sumali.
+You can see the user's screen and help them with questions about what's displayed.
+Be concise, friendly, and helpful. Describe what you see accurately and answer their questions.
+Focus on the most relevant parts of the screen for the user's question.`
+
 // Process a text prompt and return AI response
 export async function processPrompt(text: string): Promise<string> {
   const completion = await openai.chat.completions.create({
@@ -12,9 +23,7 @@ export async function processPrompt(text: string): Promise<string> {
     messages: [
       {
         role: 'system',
-        content: `You are noa, a helpful personal AI assistant created by Mario Sumali. 
-You help users with questions about their digital life - calendar, emails, files, and more.
-Be concise, friendly, and helpful. Keep responses brief unless more detail is requested.`
+        content: SYSTEM_PROMPT
       },
       {
         role: 'user',
@@ -29,14 +38,14 @@ Be concise, friendly, and helpful. Keep responses brief unless more detail is re
 
 // Process a prompt with a screenshot for screen analysis
 export async function processPromptWithScreen(text: string, screenshotBase64: string): Promise<string> {
+  console.log('Processing with vision, image size:', Math.round(screenshotBase64.length / 1024), 'KB')
+  
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: `You are noa, a helpful personal AI assistant created by Mario Sumali.
-You can see the user's screen and help them with questions about what's displayed.
-Be concise, friendly, and helpful. Describe what you see accurately and answer their questions.`
+        content: VISION_SYSTEM_PROMPT
       },
       {
         role: 'user',
@@ -48,14 +57,14 @@ Be concise, friendly, and helpful. Describe what you see accurately and answer t
           {
             type: 'image_url',
             image_url: {
-              url: `data:image/png;base64,${screenshotBase64}`,
+              url: `data:image/jpeg;base64,${screenshotBase64}`,
               detail: 'high'
             }
           }
         ]
       }
     ],
-    max_tokens: 1000,
+    max_tokens: 1500,
   })
 
   return completion.choices[0]?.message?.content || 'Sorry, I could not analyze the screen.'
