@@ -29,7 +29,7 @@ struct OverlayView: View {
             if newValue == .listening {
                 startWaveformAnimation()
                 cancelDismissTimer()
-            } else if newValue == .responding {
+            } else if newValue == .responding || newValue == .typing {
                 stopWaveformAnimation()
                 startDismissTimer()
             } else {
@@ -99,8 +99,24 @@ struct OverlayView: View {
     // MARK: - Response Panel
     private var responsePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Header: Display all used tools
+            if appState.uiMode == .responding, !appState.toolsUsed.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(Array(Set(appState.toolsUsed)), id: \.self) { tool in
+                       HStack(spacing: 4) {
+                           Image(systemName: toolIconName(for: tool))
+                           Text(toolHeaderText(for: tool))
+                               .font(.system(size: 13, weight: .medium))
+                       }
+                       .foregroundColor(toolColor(for: tool))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 4)
+            }
+
             if appState.uiMode == .responding {
-                HStack {
+                 HStack {
                     Spacer()
                     
                     Button(action: copyResponse) {
@@ -168,14 +184,38 @@ struct OverlayView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
             } else if appState.uiMode == .typing {
-                HStack(spacing: 8) {
-                    Image(systemName: "keyboard")
-                        .foregroundColor(.green)
-                    Text("Copied to clipboard")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.green)
+                // Header for typing mode with Close button
+                ZStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "keyboard")
+                            .foregroundColor(.green)
+                        Text("Copied to clipboard")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.green)
+                    }
+                    
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            // Explicitly call dismiss on main thread
+                            DispatchQueue.main.async {
+                                self.dismiss()
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.white.opacity(0.6))
+                                .frame(width: 24, height: 24)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                                .contentShape(Rectangle()) // Ensure entire frame is clickable
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
                 
                 Text(appState.aiResponse)
@@ -190,6 +230,8 @@ struct OverlayView: View {
                         .foregroundColor(.white.opacity(0.5))
                         .lineLimit(2)
                 }
+                
+                // Content (badges removed)
                 
                 Text(appState.aiResponse)
                     .font(.system(size: 14, weight: .medium))
@@ -247,6 +289,18 @@ struct OverlayView: View {
                 .padding(.vertical, 7)
                 .background(Capsule().fill(pillColor.opacity(0.9)))
                 .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
+                .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
+            } else if appState.uiMode == .responding, let primaryTool = appState.toolsUsed.first {
+                HStack(spacing: 4) {
+                    Image(systemName: toolIconName(for: primaryTool))
+                        .font(.system(size: 10))
+                        .foregroundColor(toolColor(for: primaryTool))
+                }
+                .frame(height: 18)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(pillColor.opacity(0.9)))
+                .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             } else {
                 Capsule()
                     .fill(pillColor.opacity(0.85))
@@ -286,6 +340,19 @@ struct OverlayView: View {
                 .padding(.horizontal, 7)
                 .background(Capsule().fill(pillColor.opacity(0.9)))
                 .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
+                .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
+            } else if appState.uiMode == .responding, let primaryTool = appState.toolsUsed.first {
+                VStack(spacing: 4) {
+                    Image(systemName: toolIconName(for: primaryTool))
+                        .font(.system(size: 10))
+                        .foregroundColor(toolColor(for: primaryTool))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 18)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 7)
+                .background(Capsule().fill(pillColor.opacity(0.9)))
+                .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             } else {
                 Capsule()
                     .fill(pillColor.opacity(0.85))
@@ -347,6 +414,30 @@ struct OverlayView: View {
         animationTimer = nil
         waveformPhase = 0
     }
+    
+    // MARK: - Tool Helpers
+    private func toolIconName(for tool: String) -> String {
+        if tool.contains("calendar") { return "calendar" }
+        if tool.contains("gmail") { return "envelope" }
+        if tool.contains("transcription") { return "keyboard" }
+        return "wrench.and.screwdriver"
+    }
+    
+    private func toolColor(for tool: String) -> Color {
+        if tool.contains("calendar") { return .blue }
+        if tool.contains("gmail") { return .red }
+        if tool.contains("transcription") { return .purple }
+        return .gray
+    }
+    
+    private func toolHeaderText(for tool: String) -> String {
+        if tool == "calendar_create" { return "Event Scheduler" }
+        if tool == "calendar_delete" { return "Event Cancelled" }
+        if tool == "calendar_query" { return "Calendar" }
+        if tool == "gmail_query" { return "Email Found" }
+        if tool.contains("transcription") { return "Copied to clipboard" }
+        return tool.replacingOccurrences(of: "_", with: " ").capitalized
+    }
 }
 
 // MARK: - Waveform Bar
@@ -384,8 +475,54 @@ struct WaveformBar: View {
     }
 }
 
-#Preview {
-    OverlayView()
-        .frame(width: 500, height: 400)
-        .background(Color.gray)
+struct ToolBadge: View {
+    let tool: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(icon)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.15))
+        .foregroundColor(color)
+        .cornerRadius(4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(color.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+    
+    var icon: String {
+        if tool.contains("calendar") { return "📅" }
+        if tool.contains("gmail") { return "📧" }
+        if tool.contains("transcription") { return "📝" }
+        return "🔧"
+    }
+    
+    var label: String {
+        if tool == "calendar_create" { return "Created" }
+        if tool == "calendar_delete" { return "Deleted" }
+        if tool == "calendar_query" { return "Calendar" }
+        if tool == "gmail_query" { return "Email" }
+        if tool == "transcription_log" || tool == "transcription" { return "Transcription" }
+        return tool.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+    
+    var color: Color {
+        if tool.contains("calendar") { return .blue }
+        if tool.contains("gmail") { return .red }
+        if tool.contains("transcription") { return .purple }
+        return .gray
+    }
+}
+
+struct OverlayView_Previews: PreviewProvider {
+    static var previews: some View {
+        OverlayView()
+            .frame(width: 500, height: 400)
+            .background(Color.gray)
+    }
 }
