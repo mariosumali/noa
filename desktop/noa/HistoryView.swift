@@ -128,9 +128,9 @@ struct HistoryView: View {
             }
         }
         .frame(width: 500, height: 600)
-        .onAppear {
-            refresh()
-        }
+        // .onAppear {
+        //    refresh()
+        // }
     }
     
     private func refresh() {
