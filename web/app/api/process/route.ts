@@ -40,6 +40,21 @@ function getCalendarActionIntent(text: string): 'create' | 'delete' | 'query' | 
   return 'query'
 }
 
+// Clean up event text for Google's quickAdd - extract just the event details
+function cleanEventText(text: string): string {
+  let cleaned = text
+    // Remove command prefixes
+    .replace(/^(please\s+)?(can you\s+)?(hey\s+)?(noa\s+)?/i, '')
+    .replace(/^(create|add|schedule|set up|book|make)\s+(a\s+)?/i, '')
+    // Remove "for me" type phrases
+    .replace(/\s+for me\b/gi, '')
+    // Remove trailing punctuation
+    .replace(/[.!?]+$/, '')
+    .trim()
+
+  return cleaned
+}
+
 // POST /api/process - Process a voice command and return AI response
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +83,9 @@ export async function POST(request: NextRequest) {
         if (actionIntent === 'create') {
           console.log('Calendar CREATE action detected')
           try {
-            const event = await quickAddEvent(user_id, text)
+            const cleanedText = cleanEventText(text)
+            console.log('Cleaned event text:', cleanedText)
+            const event = await quickAddEvent(user_id, cleanedText)
             const startTime = event.start?.dateTime || event.start?.date
             const formattedTime = startTime ? new Date(startTime).toLocaleString('en-US', {
               weekday: 'long',
