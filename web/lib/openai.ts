@@ -98,7 +98,8 @@ export async function processPromptWithContext(text: string, context: string): P
 
 // Transcribe audio using Whisper
 export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
-  const file = new File([audioBuffer], 'audio.webm', { type: 'audio/webm' })
+  const uint8Array = new Uint8Array(audioBuffer) as Uint8Array<ArrayBuffer>
+  const file = new File([uint8Array], 'audio.webm', { type: 'audio/webm' })
 
   const transcription = await openai.audio.transcriptions.create({
     file: file,

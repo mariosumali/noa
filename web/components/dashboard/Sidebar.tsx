@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/(auth)/actions'
 import { useTheme } from '@/lib/theme'
+import VoiceInput from './VoiceInput'
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: HomeIcon },
@@ -21,7 +22,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
       <div className="p-5 flex items-center gap-2">
         <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center">
           <svg className="w-4 h-4 text-background" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 3v18M3 12h18M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M12 3v18M3 12h18M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
         <span className="font-semibold text-lg">noa</span>
@@ -36,11 +37,10 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${
-                isActive 
-                  ? 'bg-hover text-foreground font-medium' 
-                  : 'text-muted hover:bg-hover hover:text-foreground'
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-colors ${isActive
+                ? 'bg-hover text-foreground font-medium'
+                : 'text-muted hover:bg-hover hover:text-foreground'
+                }`}
             >
               <item.icon className="w-5 h-5" />
               <span className="text-sm">{item.label}</span>
@@ -67,8 +67,10 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
 
         {/* Theme toggle & links */}
         <div className="space-y-1">
+          <VoiceInput />
+
           {/* Theme Toggle */}
-          <button 
+          <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-muted hover:bg-hover hover:text-foreground transition-colors"
           >
@@ -84,7 +86,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
             <HelpIcon className="w-4 h-4" />
             <span className="text-sm">Help</span>
           </Link>
-          
+
           <form action={logout}>
             <button type="submit" className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-muted hover:bg-hover hover:text-foreground transition-colors">
               <LogoutIcon className="w-4 h-4" />

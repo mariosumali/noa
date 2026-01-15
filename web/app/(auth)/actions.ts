@@ -47,9 +47,9 @@ export async function logout() {
   redirect('/')
 }
 
-export async function loginWithGoogle() {
+export async function loginWithGoogle(formData: FormData) {
   const supabase = await createSupabaseServerClient()
-  
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
