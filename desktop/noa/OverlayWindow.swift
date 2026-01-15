@@ -5,7 +5,7 @@ class OverlayWindow: NSWindow {
     
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 350, height: 80),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 400),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -42,9 +42,9 @@ class OverlayWindow: NSWindow {
         guard let screen = NSScreen.main else { return }
         
         let screenFrame = screen.visibleFrame
-        let windowWidth: CGFloat = 350
-        let windowHeight: CGFloat = 80
-        let bottomMargin: CGFloat = 24
+        let windowWidth: CGFloat = 400
+        let windowHeight: CGFloat = 400
+        let bottomMargin: CGFloat = 20
         
         let x = screenFrame.midX - (windowWidth / 2)
         let y = screenFrame.minY + bottomMargin
