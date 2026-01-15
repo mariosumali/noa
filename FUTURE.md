@@ -1,53 +1,88 @@
-# Future Ideas
+# Future Features
 
-## Features to Consider
+## Short-term (v0.2)
+
+### Desktop App
+- [ ] Screen capture on demand ("What's on my screen?")
+- [ ] Launch at login option
+- [ ] Custom hotkey configuration
+- [ ] Sound effects (start/stop recording)
+- [ ] Animated waveform improvements
+- [ ] Auto-update mechanism
+
+### Web Dashboard
+- [ ] Dark mode toggle
+- [ ] Search prompts
+- [ ] Delete individual prompts
+- [ ] Clear all history
+- [ ] Export history (JSON/CSV)
+
+### API
+- [ ] Rate limiting
+- [ ] Usage tracking per user
+- [ ] Streaming responses
+
+---
+
+## Medium-term (v0.3)
 
 ### Voice & Interaction
-- Text-to-speech responses (noa speaks back)
-- Wake word activation ("Hey noa") instead of holding key
-- Multi-language support
-- Custom voice selection
+- [ ] Text-to-speech responses (noa speaks back)
+- [ ] Wake word activation ("Hey noa")
+- [ ] Continuous conversation mode
+- [ ] Multi-language support
 
 ### Integrations
-- Notion
-- Linear
-- GitHub
-- Jira
-- Todoist
-- Apple Reminders
-- Apple Notes
-- Spotify ("what song is playing?", "skip track")
-- Browser history/tabs
+- [ ] Google Calendar ("What's on my calendar?")
+- [ ] Gmail ("Any important emails?")
+- [ ] Slack ("Who should I respond to?")
+- [ ] Google Drive ("What did I last edit?")
+- [ ] Notion
+- [ ] Linear
+- [ ] GitHub
 
 ### Capabilities
-- Proactive notifications ("You have a meeting in 5 minutes")
-- Daily briefing ("Good morning, here's your day...")
-- Smart reply suggestions
-- File creation and editing
-- Automated workflows/macros
-- Memory/context from past conversations
+- [ ] Proactive notifications
+- [ ] Daily briefing
+- [ ] Smart reply suggestions
+- [ ] Memory from past conversations
+
+---
+
+## Long-term (v1.0+)
 
 ### Platforms
-- Mobile app (iOS/Android)
-- Browser extension
-- iPad app
-- Watch app (quick voice queries)
+- [ ] Windows app
+- [ ] iOS app
+- [ ] Android app
+- [ ] Browser extension
+- [ ] Apple Watch app
 
 ### AI Enhancements
-- Local LLM option for privacy
-- Fine-tuned model for personal preferences
-- Multi-modal (analyze images, documents)
-- Agent capabilities (multi-step tasks)
+- [ ] Local LLM option (privacy-focused)
+- [ ] Custom fine-tuned models
+- [ ] Multi-modal (images, documents)
+- [ ] Agent mode (multi-step tasks)
+- [ ] Execute actions (send emails, schedule meetings)
 
 ### Dashboard Features
-- Analytics and usage stats
-- Custom prompt templates
-- Export conversation history
-- Team/family sharing
+- [ ] Analytics and usage stats
+- [ ] Custom prompt templates
+- [ ] Team/family sharing
+- [ ] API key management
+
+### Enterprise
+- [ ] SSO support
+- [ ] Admin dashboard
+- [ ] Audit logs
+- [ ] Custom deployment
+
+---
 
 ## Research Areas
 
 - Privacy-preserving AI processing
 - Efficient on-device transcription
 - Low-latency voice interaction
-- Secure credential storage patterns
+- Secure credential storage
+- Real-time streaming transcription

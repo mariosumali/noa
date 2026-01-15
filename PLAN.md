@@ -2,340 +2,238 @@
 
 ## Overview
 
-noa is a personal AI assistant created by Mario Sumali. It combines a desktop application (voice-activated overlay) with a web application (settings & dashboard) to help users interact with their digital services through natural language.
+**noa** is a personal AI voice assistant for macOS, created by Mario Sumali. It combines a native desktop application (voice-activated overlay) with a web dashboard (settings & history) to help users interact with AI through natural language.
 
 ---
 
-## Decisions Made
+## Current Status: ✅ Beta
 
-| Decision | Choice | Future |
-|----------|--------|--------|
-| **Actions** | Read-only (answer questions) | Will add actions later |
-| **Voice Response** | Text display only | Will add TTS later |
-| **Platform** | macOS only | Windows support later |
-| **Processing** | Cloud-based | — |
-| **Screen Capture** | On-demand only | — |
+The MVP is complete and functional:
+- Desktop app with voice input and AI responses
+- Web dashboard with Wispr Flow-inspired UI
+- Full authentication flow
+- Prompt history persistence
 
 ---
 
-## MVP Scope (v0.1)
-
-**Goal**: Build the skeleton infrastructure with voice input and screen reading capability.
-
-### What's IN the MVP
-1. **Web App - Landing Page**
-   - Professional, minimalistic design
-   - Sign up / Log in functionality
-   - Product overview
-
-2. **Web App - Dashboard**
-   - Prompt history (stored commands and responses)
-   - Basic account settings
-
-3. **Desktop App - macOS**
-   - Overlay widget (small oval at bottom)
-   - Function key hold to activate
-   - Voice transcription (speech-to-text)
-   - Display transcribed request
-   - Display AI response
-   - On-demand screen capture
-
-4. **Backend**
-   - User authentication
-   - Store prompts/responses
-   - AI/LLM integration for responses
-   - Screen analysis via vision model
-
-5. **One Integration: Screen Reading**
-   - Capture current screen on demand
-   - Send to vision model for analysis
-   - "What's on my screen?" functionality
-
-### What's NOT in the MVP
-- ❌ Email integrations (Gmail, Outlook)
-- ❌ Calendar integrations
-- ❌ Slack integration
-- ❌ Google Drive integration
-- ❌ Taking actions (sending emails, scheduling)
-- ❌ Text-to-speech responses
-- ❌ Windows support
-- ❌ Mobile app
-
----
-
-## Architecture (MVP)
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         USER                                     │
+│                           USER                                   │
 └─────────────────────────────────────────────────────────────────┘
                     │                           │
-        [Hold Fn + Speak]              [Browser]
+        [Hold ⌥ + Speak]                [Browser]
                     │                           │
                     ▼                           ▼
 ┌─────────────────────────────┐   ┌─────────────────────────────┐
 │  Desktop App (macOS/Swift)  │   │    Web App (Next.js)        │
 │  ─────────────────────────  │   │    ─────────────────────    │
-│  • Overlay UI (oval)        │   │    • Landing page           │
-│  • Fn key listener          │   │    • Auth (login/signup)    │
-│  • Microphone capture       │   │    • Dashboard              │
-│  • Screen capture           │   │    • Prompt history         │
-│  • Display responses        │   │    • Settings               │
+│  • Menu bar app             │   │    • Landing page           │
+│  • Tiny pill overlay        │   │    • Auth (login/signup)    │
+│  • Option key activation    │   │    • Dashboard              │
+│  • Whisper transcription    │   │    • Prompt history         │
+│  • Response panel           │   │    • Settings               │
+│  • Login/Settings/History   │   │                             │
 └─────────────────────────────┘   └─────────────────────────────┘
                     │                           │
                     └───────────┬───────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Backend API (Node/Python)                    │
+│                     Backend (Next.js API Routes)                 │
 │  ───────────────────────────────────────────────────────────    │
-│  • POST /auth/signup                                             │
-│  • POST /auth/login                                              │
-│  • POST /prompts          (save prompt + response)               │
-│  • GET  /prompts          (get prompt history)                   │
-│  • POST /process          (send voice text + optional screenshot)│
+│  • POST /api/auth/login      (authenticate user)                 │
+│  • POST /api/auth/signup     (create account)                    │
+│  • POST /api/process         (AI processing)                     │
+│  • GET  /api/prompts         (get history)                       │
 └─────────────────────────────────────────────────────────────────┘
                                 │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        External Services                         │
-│  ───────────────────────────────────────────────────────────    │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   Whisper API   │  │  OpenAI GPT-4   │  │  GPT-4 Vision   │ │
-│  │   (Speech→Text) │  │  (Responses)    │  │  (Screen Read)  │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                          Database                                │
-│  ───────────────────────────────────────────────────────────    │
-│  • Users (id, email, password_hash, created_at)                  │
-│  • Prompts (id, user_id, text, response, screenshot_url, ts)     │
-└─────────────────────────────────────────────────────────────────┘
+                ┌───────────────┼───────────────┐
+                ▼               ▼               ▼
+        ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+        │   Whisper   │ │   GPT-4     │ │  Supabase   │
+        │   (STT)     │ │   (LLM)     │ │   (DB)      │
+        └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
 ---
 
-## Technology Stack (MVP)
+## Technology Stack
 
-### Chosen for MVP
-
-| Component | Technology | Reason |
-|-----------|------------|--------|
-| **Desktop App** | Swift (native macOS) | Best macOS integration, lightweight, can do Windows later with different tech |
-| **Web App** | Next.js 14 | Full-stack React, great DX, easy deployment |
-| **Backend** | Next.js API Routes | Keep it simple, one codebase for web + API |
-| **Database** | Supabase (Postgres) | Auth built-in, easy setup, real-time capable |
-| **Speech-to-Text** | Whisper API (OpenAI) | Accurate, easy integration |
-| **LLM** | OpenAI GPT-4 | Best quality, vision capabilities included |
-| **Hosting** | Vercel (web) | Easy Next.js deployment |
-
-### Data Flow
-
-1. User holds Fn key → Desktop app starts recording
-2. User speaks → Audio captured
-3. User releases Fn → Audio sent to Whisper API → Text returned
-4. If "screen" mentioned → Capture screenshot
-5. Text (+ screenshot if applicable) sent to backend `/process`
-6. Backend sends to GPT-4 (with vision if screenshot)
-7. Response returned → Displayed in overlay
-8. Prompt + response saved to database
+| Component | Technology |
+|-----------|------------|
+| **Desktop App** | Swift / SwiftUI (native macOS) |
+| **Web App** | Next.js 14, React 18, Tailwind CSS |
+| **Backend** | Next.js API Routes |
+| **Database** | Supabase (PostgreSQL) |
+| **Auth** | Supabase Auth (email + Google OAuth) |
+| **Speech-to-Text** | OpenAI Whisper API |
+| **LLM** | OpenAI GPT-4 |
+| **Hosting** | Vercel |
 
 ---
 
-## Database Schema (MVP)
+## Database Schema
 
 ```sql
--- Users table (handled by Supabase Auth)
--- Supabase provides: id, email, encrypted_password, created_at, etc.
-
 -- Prompts table
 CREATE TABLE prompts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  text TEXT NOT NULL,
-  response TEXT,
-  screenshot_url TEXT,
+  device_id TEXT,                    -- For anonymous/device tracking
+  text TEXT NOT NULL,                -- User's spoken text
+  response TEXT,                     -- AI response
+  screenshot_url TEXT,               -- Screen capture (if used)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index for faster queries
+-- Indexes
 CREATE INDEX prompts_user_id_idx ON prompts(user_id);
+CREATE INDEX prompts_device_id_idx ON prompts(device_id);
 CREATE INDEX prompts_created_at_idx ON prompts(created_at DESC);
 ```
 
 ---
 
-## File Structure (MVP)
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | Login with email/password |
+| POST | `/api/auth/signup` | Create new account |
+
+### Processing
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/process` | Process voice text, return AI response |
+
+**Request:**
+```json
+{
+  "text": "What is the meaning of life?",
+  "device_id": "mac_ABC123",
+  "user_id": "optional-uuid",
+  "screenshot": "optional-base64"
+}
+```
+
+**Response:**
+```json
+{
+  "response": "The meaning of life is...",
+  "prompt_id": "uuid"
+}
+```
+
+### Prompts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prompts?device_id=X` | Get prompt history |
+| POST | `/api/prompts` | Save a prompt (internal) |
+
+---
+
+## File Structure
 
 ```
 noa/
-├── README.md
-├── PLAN.md
-├── TODO.md
-├── FUTURE.md
-├── BUGS.md
+├── README.md              # Project overview
+├── PLAN.md               # This file
+├── TODO.md               # Task tracking
+├── FUTURE.md             # Future features
+├── BUGS.md               # Bug tracking
 │
-├── web/                          # Next.js web application
-│   ├── package.json
-│   ├── next.config.js
-│   ├── tailwind.config.js
-│   ├── .env.local
-│   │
+├── web/                  # Next.js web application
 │   ├── app/
-│   │   ├── layout.tsx            # Root layout
-│   │   ├── page.tsx              # Landing page
-│   │   ├── globals.css
-│   │   │
+│   │   ├── page.tsx                 # Landing page
+│   │   ├── layout.tsx               # Root layout
+│   │   ├── globals.css              # Global styles
 │   │   ├── (auth)/
 │   │   │   ├── login/page.tsx
-│   │   │   └── signup/page.tsx
-│   │   │
+│   │   │   ├── signup/page.tsx
+│   │   │   └── actions.ts
 │   │   ├── dashboard/
 │   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx          # Main dashboard
-│   │   │   ├── history/page.tsx  # Prompt history
+│   │   │   ├── page.tsx             # Home (history)
+│   │   │   ├── history/page.tsx
 │   │   │   └── settings/page.tsx
-│   │   │
-│   │   └── api/
-│   │       ├── auth/
-│   │       │   └── [...supabase]/route.ts
-│   │       ├── prompts/
-│   │       │   └── route.ts      # GET & POST prompts
-│   │       └── process/
-│   │           └── route.ts      # Process voice + screen
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── login/route.ts
+│   │   │   │   └── signup/route.ts
+│   │   │   ├── process/route.ts
+│   │   │   └── prompts/route.ts
+│   │   └── auth/callback/route.ts
 │   │
 │   ├── components/
-│   │   ├── ui/                   # Reusable UI components
-│   │   ├── landing/              # Landing page components
-│   │   └── dashboard/            # Dashboard components
+│   │   ├── landing/                 # Landing page sections
+│   │   └── dashboard/
+│   │       └── Sidebar.tsx
 │   │
-│   └── lib/
-│       ├── supabase.ts           # Supabase client
-│       ├── openai.ts             # OpenAI client
-│       └── utils.ts
+│   ├── lib/
+│   │   ├── supabase.ts              # Supabase clients
+│   │   ├── supabase-server.ts
+│   │   ├── supabase-browser.ts
+│   │   ├── openai.ts                # OpenAI functions
+│   │   └── utils.ts
+│   │
+│   └── hooks/
+│       └── useAuth.ts
 │
-└── desktop/                      # Swift macOS application
-    ├── noa.xcodeproj
+└── desktop/              # Swift macOS application
     └── noa/
-        ├── NoaApp.swift          # App entry point
-        ├── ContentView.swift     # Main overlay view
-        ├── AudioRecorder.swift   # Microphone handling
-        ├── ScreenCapture.swift   # Screenshot functionality
-        ├── HotkeyManager.swift   # Fn key detection
-        ├── APIClient.swift       # Backend communication
-        └── Assets.xcassets
+        ├── NoaApp.swift             # App entry, menu bar
+        ├── AppState.swift           # State management
+        ├── OverlayWindow.swift      # Window positioning
+        ├── OverlayView.swift        # Pill + response UI
+        ├── HotkeyManager.swift      # Option key detection
+        ├── AudioRecorder.swift      # Microphone recording
+        ├── ScreenCapture.swift      # Screen capture (disabled)
+        ├── APIClient.swift          # Backend + Whisper API
+        ├── Config.swift             # Load ~/.noa_config
+        ├── AuthManager.swift        # User authentication
+        ├── MenuBarView.swift        # Menu bar popover
+        ├── LoginView.swift          # Login window
+        ├── SettingsView.swift       # Settings window
+        ├── HistoryView.swift        # History window
+        ├── Info.plist
+        └── noa.entitlements
 ```
 
 ---
 
-## MVP Development Phases
+## Data Flow
 
-### Phase 1: Project Setup
-- [ ] Initialize Next.js project with TypeScript
-- [ ] Set up Tailwind CSS
-- [ ] Create Supabase project
-- [ ] Set up environment variables
-- [ ] Create basic file structure
-
-### Phase 2: Web - Landing Page
-- [ ] Design landing page layout
-- [ ] Build hero section
-- [ ] Build features section
-- [ ] Build CTA section
-- [ ] Add navigation
-
-### Phase 3: Web - Authentication
-- [ ] Set up Supabase Auth
-- [ ] Build login page
-- [ ] Build signup page
-- [ ] Implement auth middleware
-- [ ] Protected routes for dashboard
-
-### Phase 4: Web - Dashboard
-- [ ] Dashboard layout with sidebar
-- [ ] Prompt history page (list view)
-- [ ] Settings page (basic)
-- [ ] Connect to Supabase for data
-
-### Phase 5: Backend - API Routes
-- [ ] POST /api/prompts - Save prompt
-- [ ] GET /api/prompts - Get history
-- [ ] POST /api/process - Process request
-- [ ] OpenAI integration (GPT-4)
-- [ ] Whisper API integration (if needed server-side)
-
-### Phase 6: Desktop - macOS App
-- [ ] Create Xcode project
-- [ ] Build overlay UI (oval shape)
-- [ ] Implement Fn key detection
-- [ ] Implement microphone recording
-- [ ] Implement screen capture
-- [ ] Send audio to Whisper API
-- [ ] Send text to backend
-- [ ] Display response in overlay
-
-### Phase 7: Integration & Polish
-- [ ] Connect desktop app to backend
-- [ ] Test full flow end-to-end
-- [ ] Error handling
-- [ ] Loading states
-- [ ] Polish UI/UX
+1. **User holds Option key** → Desktop app starts recording
+2. **User speaks** → Audio captured as m4a
+3. **User releases key** → Audio sent to Whisper API → Text returned
+4. **Text sent to backend** `/api/process` with device_id
+5. **Backend calls GPT-4** → Response generated
+6. **Response saved** to Supabase with device/user tracking
+7. **Response returned** → Displayed in overlay panel
+8. **History synced** → Available in web dashboard
 
 ---
 
-## API Endpoints (MVP)
+## Key Decisions
 
-### Authentication (Supabase handles)
-- `POST /auth/signup` - Create account
-- `POST /auth/login` - Sign in
-- `POST /auth/logout` - Sign out
-
-### Prompts
-```
-POST /api/prompts
-Body: { text: string, response: string, screenshot_url?: string }
-Returns: { id, text, response, screenshot_url, created_at }
-
-GET /api/prompts
-Query: ?limit=50&offset=0
-Returns: { prompts: [...], total: number }
-```
-
-### Process (Main endpoint for desktop app)
-```
-POST /api/process
-Body: { 
-  text: string,           // Transcribed voice input
-  screenshot?: string     // Base64 encoded image (optional)
-}
-Returns: { 
-  response: string,       // AI response
-  prompt_id: string       // Saved prompt ID
-}
-```
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Activation | Option key (⌥) | Less conflict than Fn, works globally |
+| Audio format | m4a (AAC) | Native to macOS, Whisper compatible |
+| UI style | Wispr Flow | Clean, minimal, professional |
+| Prompt tracking | device_id | Works without login, can link later |
+| Menu bar | Yes | Easy access without dock clutter |
+| Response display | Panel above pill | No text cutoff, clear separation |
 
 ---
 
-## Future Integrations (Post-MVP)
+## Future Plans
 
-Once the skeleton is working, we'll add these one by one:
-
-1. **Google Calendar** - "What's on my calendar?"
-2. **Gmail** - "Do I have important emails?"
-3. **Outlook** - Email and calendar
-4. **Slack** - "Who should I respond to?"
-5. **Google Drive** - "What did I last edit?"
-6. **Actions** - Actually send emails, schedule meetings
-7. **Text-to-Speech** - Voice responses
-8. **Windows App** - Cross-platform support
-
----
-
-## Notes
-
-- Using Supabase for auth simplifies a lot of the backend complexity
-- Swift for macOS gives us the best integration for hotkeys, screen capture, and system-level access
-- Keeping web and API in the same Next.js project reduces complexity for MVP
-- GPT-4 Vision handles both text responses and screen analysis
+See [FUTURE.md](./FUTURE.md) for detailed roadmap including:
+- Text-to-speech responses
+- Calendar/email integrations
+- Windows/mobile apps
+- Local LLM option
