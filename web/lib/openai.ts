@@ -25,7 +25,7 @@ If asked about specific emails, provide relevant details from the context provid
 // Process a text prompt and return AI response
 export async function processPrompt(text: string): Promise<string> {
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini',
     messages: [
       {
         role: 'system',
@@ -45,7 +45,7 @@ export async function processPrompt(text: string): Promise<string> {
 // Process a prompt with a screenshot for screen analysis
 export async function processPromptWithScreen(text: string, screenshotBase64: string): Promise<string> {
   console.log('Processing with vision, image size:', Math.round(screenshotBase64.length / 1024), 'KB')
-  
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -79,7 +79,7 @@ export async function processPromptWithScreen(text: string, screenshotBase64: st
 // Process a prompt with additional context (emails, calendar, etc.)
 export async function processPromptWithContext(text: string, context: string): Promise<string> {
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini',
     messages: [
       {
         role: 'system',
@@ -99,7 +99,7 @@ export async function processPromptWithContext(text: string, context: string): P
 // Transcribe audio using Whisper
 export async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   const file = new File([audioBuffer], 'audio.webm', { type: 'audio/webm' })
-  
+
   const transcription = await openai.audio.transcriptions.create({
     file: file,
     model: 'whisper-1',
