@@ -226,6 +226,15 @@ struct SettingsView: View {
                         .frame(width: 200)
                     }
                     .padding(.vertical, 4)
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                        
+                    SettingsToggle(
+                        title: "Auto-paste text",
+                        description: "Paste text immediately after transcription",
+                        isOn: $settings.autoPaste
+                    )
                 }
                 
                 // API Configuration

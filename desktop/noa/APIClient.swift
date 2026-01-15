@@ -5,6 +5,17 @@ struct TranscriptionResponse: Codable {
     let text: String
 }
 
+struct ProcessResult {
+    let text: String
+    let toolsUsed: [String]
+}
+
+struct BackendResponse: Codable {
+    let response: String
+    let prompt_id: String?
+    let tools_used: [String]?
+}
+
 class APIClient {
     static let shared = APIClient()
     
@@ -96,7 +107,7 @@ class APIClient {
     }
     
     /// Send text (and optional screenshot) to backend for AI processing
-    func processText(text: String, screenshot: String?) async throws -> String {
+    func processText(text: String, screenshot: String?) async throws -> ProcessResult {
         print("APIClient: Sending to backend...")
         
         guard let url = URL(string: "\(baseURL)/api/process") else {
@@ -136,14 +147,59 @@ class APIClient {
             throw APIError.processingFailed
         }
         
-        struct BackendResponse: Codable {
-            let response: String
-            let prompt_id: String?
+        let backendResponse = try JSONDecoder().decode(BackendResponse.self, from: data)
+        print("APIClient: Saved prompt with ID: \(backendResponse.prompt_id ?? "none")")
+        print("APIClient: Tools used: \(backendResponse.tools_used ?? [])")
+        
+        return ProcessResult(
+            text: backendResponse.response,
+            toolsUsed: backendResponse.tools_used ?? []
+        )
+    }
+    
+    /// Log transcription to backend without AI processing
+    func logTranscription(text: String) async throws -> ProcessResult {
+        print("APIClient: Logging transcription...")
+        
+        guard let url = URL(string: "\(baseURL)/api/process") else {
+            throw APIError.processingFailed
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+        
+        var body: [String: Any] = [
+            "text": text,
+            "device_id": deviceId,
+            "skip_ai": true
+        ]
+        
+        if let userId = AuthManager.shared.getUserId() {
+            body["user_id"] = userId
+        }
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.processingFailed
+        }
+        
+        if httpResponse.statusCode != 200 {
+            print("APIClient: Logging failed with status \(httpResponse.statusCode)")
+            throw APIError.processingFailed
         }
         
         let backendResponse = try JSONDecoder().decode(BackendResponse.self, from: data)
-        print("APIClient: Saved prompt with ID: \(backendResponse.prompt_id ?? "none")")
-        return backendResponse.response
+        print("APIClient: Logged prompt ID: \(backendResponse.prompt_id ?? "none")")
+        
+        return ProcessResult(
+            text: backendResponse.response,
+            toolsUsed: backendResponse.tools_used ?? []
+        )
     }
 }
 

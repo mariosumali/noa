@@ -162,6 +162,12 @@ class NoaSettings: ObservableObject {
         }
     }
     
+    @Published var autoPaste: Bool {
+        didSet {
+            UserDefaults.standard.set(autoPaste, forKey: "autoPaste")
+        }
+    }
+    
     private init() {
         self.overlayOpacity = UserDefaults.standard.object(forKey: "overlayOpacity") as? Double ?? 0.88
         
@@ -197,6 +203,8 @@ class NoaSettings: ObservableObject {
         } else {
             self.transcriptionMode = .whisper  // Default to Whisper for backwards compatibility
         }
+        
+        self.autoPaste = UserDefaults.standard.bool(forKey: "autoPaste")
     }
 }
 

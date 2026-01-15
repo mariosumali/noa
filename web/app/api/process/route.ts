@@ -61,11 +61,36 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient()
     const body = await request.json()
-
-    const { user_id, device_id, text, screenshot } = body
+    const { user_id, device_id, text, screenshot, skip_ai } = body
 
     if (!text) {
       return NextResponse.json({ error: 'text is required' }, { status: 400 })
+    }
+
+    // If skip_ai is true (e.g. for pure dictation logging), save and return immediately
+    if (skip_ai) {
+      console.log('Skipping AI processing (dictation mode)')
+
+      const insertData: any = {
+        text,
+        response: 'Transcribed text', // Placeholder
+        tools_used: ['transcription_log'],
+        device_id: device_id || 'unknown'
+      }
+
+      if (user_id) insertData.user_id = user_id
+
+      const { data: prompt } = await supabase
+        .from('prompts')
+        .insert(insertData)
+        .select('id')
+        .single()
+
+      return NextResponse.json({
+        response: text,
+        prompt_id: prompt?.id,
+        tools_used: ['transcription_log']
+      })
     }
 
     let response: string

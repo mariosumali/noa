@@ -25,6 +25,7 @@ class AppState: ObservableObject {
     @Published var isRecordingAudio: Bool = false
     @Published var isProcessingAPI: Bool = false
     @Published var apiError: String?
+    @Published var toolsUsed: [String] = []
 
     private var audioRecorder = AudioRecorder()
     private var speechRecognizer = SpeechRecognizer()
@@ -45,6 +46,7 @@ class AppState: ObservableObject {
         uiMode = .listening
         transcribedText = ""
         aiResponse = ""
+        toolsUsed = []
         isRecordingAudio = true
         startWaveformAnimation()
         
@@ -146,9 +148,22 @@ class AppState: ObservableObject {
                     // Copy to clipboard
                     KeyboardTyper.typeText(textToType)
                     
+                    // Auto-paste if enabled
+                    var feedbackMessage = "Copied! Press ⌘V to paste"
+                    if NoaSettings.shared.autoPaste {
+                        // Small delay to ensure clipboard is ready
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                        KeyboardTyper.pasteFromClipboard()
+                        feedbackMessage = "Pasted!"
+                    }
+                    
+                    // Log to history without AI processing
+                    let result = try await APIClient.shared.logTranscription(text: textToType)
+                    
                     await MainActor.run {
-                        self.aiResponse = "Copied! Press ⌘V to paste:\n\"\(textToType)\""
-                        self.uiMode = .responding
+                        self.aiResponse = "\(feedbackMessage)\n\"\(textToType)\""
+                        self.toolsUsed = result.toolsUsed
+                        self.uiMode = .typing
                         self.isProcessingAPI = false
                     }
                     return
@@ -166,15 +181,16 @@ class AppState: ObservableObject {
                     }
                 }
 
-                let response = try await APIClient.shared.processText(text: transcription, screenshot: screenshotBase64)
+                let result = try await APIClient.shared.processText(text: transcription, screenshot: screenshotBase64)
                 
                 await MainActor.run {
-                    self.aiResponse = response
+                    self.aiResponse = result.text
+                    self.toolsUsed = result.toolsUsed
                     self.uiMode = .responding
                     self.isProcessingAPI = false
                     
                     // Speak the response if TTS is enabled
-                    TextToSpeech.shared.speak(response)
+                    TextToSpeech.shared.speak(result.text)
                 }
             } catch {
                 await MainActor.run {
@@ -193,6 +209,7 @@ class AppState: ObservableObject {
         transcribedText = ""
         aiResponse = ""
         apiError = nil
+        toolsUsed = []
     }
 
     private func startWaveformAnimation() {
