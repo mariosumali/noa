@@ -16,8 +16,29 @@ import {
   getEventsForDate,
   getUpcomingEvents,
   formatEventsForContext,
-  parseDateFromQuery
+  parseDateFromQuery,
+  quickAddEvent,
+  findEventsByTitle,
+  deleteEvent
 } from '@/lib/calendar'
+
+// Detect calendar action intent
+function getCalendarActionIntent(text: string): 'create' | 'delete' | 'query' | null {
+  const lowercased = text.toLowerCase()
+
+  // Create patterns
+  if (lowercased.match(/\b(create|add|schedule|set up|book|make)\b.*(meeting|event|appointment|reminder|call)/i) ||
+    lowercased.match(/\b(meeting|event|appointment|call)\b.*(at|on|for|tomorrow|today)/i)) {
+    return 'create'
+  }
+
+  // Delete patterns
+  if (lowercased.match(/\b(cancel|delete|remove|clear)\b.*(meeting|event|appointment|call)/i)) {
+    return 'delete'
+  }
+
+  return 'query'
+}
 
 // POST /api/process - Process a voice command and return AI response
 export async function POST(request: NextRequest) {
@@ -41,24 +62,70 @@ export async function POST(request: NextRequest) {
 
       try {
         const lowercased = text.toLowerCase()
+        const actionIntent = getCalendarActionIntent(text)
 
-        // Try to parse a specific date from the query
-        const parsedDate = parseDateFromQuery(text)
+        // Handle calendar ACTIONS (create, delete)
+        if (actionIntent === 'create') {
+          console.log('Calendar CREATE action detected')
+          try {
+            const event = await quickAddEvent(user_id, text)
+            const startTime = event.start?.dateTime || event.start?.date
+            const formattedTime = startTime ? new Date(startTime).toLocaleString('en-US', {
+              weekday: 'long',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            }) : 'unknown time'
+            calendarContext = `[EVENT CREATED] Successfully created: "${event.summary}" on ${formattedTime}.`
+          } catch (createError) {
+            console.error('Failed to create event:', createError)
+            calendarContext = '[Failed to create event. Please try again with a clearer time and description.]'
+          }
+        }
+        else if (actionIntent === 'delete') {
+          console.log('Calendar DELETE action detected')
+          // Extract event name to search for
+          const searchMatch = text.match(/(?:cancel|delete|remove|clear)\s+(?:my\s+)?(?:the\s+)?(.+?)(?:\s+meeting|\s+event|\s+appointment|\s+call)?$/i)
+          if (searchMatch) {
+            const searchTerm = searchMatch[1].trim()
+            const matchingEvents = await findEventsByTitle(user_id, searchTerm, 14)
 
-        if (parsedDate) {
-          // Fetch events for the specific date
-          const events = await getEventsForDate(user_id, parsedDate.offset)
-          calendarContext = `You have ${events.length} event(s) on ${parsedDate.label}.\n\n${formatEventsForContext(events)}`
+            if (matchingEvents.length === 0) {
+              calendarContext = `[No event found matching "${searchTerm}" in the next 2 weeks.]`
+            } else if (matchingEvents.length === 1) {
+              const eventToDelete = matchingEvents[0]
+              await deleteEvent(user_id, eventToDelete.id!)
+              calendarContext = `[EVENT DELETED] Successfully cancelled: "${eventToDelete.summary}".`
+            } else {
+              // Multiple matches - list them for the user
+              const eventList = matchingEvents.slice(0, 5).map(e => `- ${e.summary}`).join('\n')
+              calendarContext = `[Multiple events found matching "${searchTerm}". Please be more specific:\n${eventList}]`
+            }
+          } else {
+            calendarContext = '[Could not understand which event to cancel. Please specify the event name.]'
+          }
         }
-        // Check for upcoming/this week/schedule (general range queries)
-        else if (lowercased.includes('upcoming') || lowercased.includes('week') || lowercased.includes('schedule')) {
-          const events = await getUpcomingEvents(user_id, 7)
-          calendarContext = `Here are your upcoming events:\n\n${formatEventsForContext(events)}`
-        }
-        // Default: show today's events
+        // Handle calendar QUERIES (reading events)
         else {
-          const events = await getEventsForDate(user_id, 0)
-          calendarContext = `Here is your calendar for today:\n\n${formatEventsForContext(events)}`
+          // Try to parse a specific date from the query
+          const parsedDate = parseDateFromQuery(text)
+
+          if (parsedDate) {
+            // Fetch events for the specific date
+            const events = await getEventsForDate(user_id, parsedDate.offset)
+            calendarContext = `You have ${events.length} event(s) on ${parsedDate.label}.\n\n${formatEventsForContext(events)}`
+          }
+          // Check for upcoming/this week/schedule (general range queries)
+          else if (lowercased.includes('upcoming') || lowercased.includes('week') || lowercased.includes('schedule')) {
+            const events = await getUpcomingEvents(user_id, 7)
+            calendarContext = `Here are your upcoming events:\n\n${formatEventsForContext(events)}`
+          }
+          // Default: show today's events
+          else {
+            const events = await getEventsForDate(user_id, 0)
+            calendarContext = `Here is your calendar for today:\n\n${formatEventsForContext(events)}`
+          }
         }
 
         console.log(`Calendar context prepared`)
