@@ -38,4 +38,6 @@ next-env.d.ts
 # Desktop app build artifacts
 desktop/build/
 desktop/DerivedData/
+.build/
+.swiftpm/
 *.xcuserstate
