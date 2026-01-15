@@ -10,6 +10,8 @@ enum UIMode {
 }
 
 class AppState: ObservableObject {
+    static let shared = AppState()
+    
     @Published var uiMode: UIMode = .idle
     @Published var transcribedText: String = ""
     @Published var aiResponse: String = ""
@@ -26,7 +28,7 @@ class AppState: ObservableObject {
     private var audioRecorder = AudioRecorder()
     private var waveformTimer: Timer?
 
-    init() {
+    private init() {
         // Load device ID from UserDefaults or generate new one
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
             self.deviceId = savedDeviceId
