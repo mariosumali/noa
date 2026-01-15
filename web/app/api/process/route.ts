@@ -11,6 +11,13 @@ import {
   formatEmailsForContext,
   extractSenderFromQuery
 } from '@/lib/gmail'
+import {
+  isCalendarQuery,
+  getEventsForDate,
+  getUpcomingEvents,
+  formatEventsForContext,
+  parseDateFromQuery
+} from '@/lib/calendar'
 
 // POST /api/process - Process a voice command and return AI response
 export async function POST(request: NextRequest) {
@@ -26,6 +33,44 @@ export async function POST(request: NextRequest) {
 
     let response: string
     let emailContext: string | null = null
+    let calendarContext: string | null = null
+
+    // Check if this is a Calendar query and user has Google connected
+    if (user_id && isCalendarQuery(text)) {
+      console.log('Calendar query detected, fetching calendar context...')
+
+      try {
+        const lowercased = text.toLowerCase()
+
+        // Try to parse a specific date from the query
+        const parsedDate = parseDateFromQuery(text)
+
+        if (parsedDate) {
+          // Fetch events for the specific date
+          const events = await getEventsForDate(user_id, parsedDate.offset)
+          calendarContext = `You have ${events.length} event(s) on ${parsedDate.label}.\n\n${formatEventsForContext(events)}`
+        }
+        // Check for upcoming/this week/schedule (general range queries)
+        else if (lowercased.includes('upcoming') || lowercased.includes('week') || lowercased.includes('schedule')) {
+          const events = await getUpcomingEvents(user_id, 7)
+          calendarContext = `Here are your upcoming events:\n\n${formatEventsForContext(events)}`
+        }
+        // Default: show today's events
+        else {
+          const events = await getEventsForDate(user_id, 0)
+          calendarContext = `Here is your calendar for today:\n\n${formatEventsForContext(events)}`
+        }
+
+        console.log(`Calendar context prepared`)
+      } catch (calendarError) {
+        console.error('Calendar fetch error:', calendarError)
+        if ((calendarError as Error).message?.includes('not connected')) {
+          calendarContext = '[Google Calendar is not connected. The user needs to connect their Google account in settings first.]'
+        } else {
+          calendarContext = '[Error fetching calendar. Google may need to be reconnected.]'
+        }
+      }
+    }
 
     // Check if this is a Gmail query and user has Gmail connected
     if (user_id && isGmailQuery(text)) {
@@ -85,12 +130,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Process with appropriate method
+    // Combine contexts if multiple are available
+    const combinedContext = [calendarContext, emailContext].filter(Boolean).join('\n\n---\n\n')
+
     if (screenshot) {
       console.log(`Processing with vision - text: "${text.substring(0, 50)}...", screenshot: ${Math.round(screenshot.length / 1024)}KB`)
       response = await processPromptWithScreen(text, screenshot)
-    } else if (emailContext) {
-      console.log(`Processing with email context`)
-      response = await processPromptWithContext(text, emailContext)
+    } else if (combinedContext) {
+      console.log(`Processing with context (calendar: ${!!calendarContext}, email: ${!!emailContext})`)
+      response = await processPromptWithContext(text, combinedContext)
     } else {
       console.log(`Processing text only - "${text.substring(0, 50)}..."`)
       response = await processPrompt(text)
