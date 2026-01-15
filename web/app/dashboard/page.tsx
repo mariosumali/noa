@@ -3,10 +3,10 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 
 function formatTime(dateString: string) {
   const date = new Date(dateString)
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: true 
+    hour12: true
   })
 }
 
@@ -21,17 +21,17 @@ function formatDateHeader(dateString: string) {
   } else if (date.toDateString() === yesterday.toDateString()) {
     return 'YESTERDAY'
   } else {
-    return date.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
     }).toUpperCase()
   }
 }
 
 function groupPromptsByDate(prompts: any[]) {
   const groups: { [key: string]: any[] } = {}
-  
+
   prompts.forEach(prompt => {
     const dateKey = new Date(prompt.created_at).toDateString()
     if (!groups[dateKey]) {
@@ -39,7 +39,7 @@ function groupPromptsByDate(prompts: any[]) {
     }
     groups[dateKey].push(prompt)
   })
-  
+
   return Object.entries(groups).map(([dateKey, prompts]) => ({
     dateKey,
     label: formatDateHeader(prompts[0].created_at),
@@ -50,7 +50,7 @@ function groupPromptsByDate(prompts: any[]) {
 export default async function DashboardPage() {
   const supabaseAuth = await createSupabaseServerClient()
   const supabaseAdmin = createServerSupabaseClient()
-  
+
   const { data: { user } } = await supabaseAuth.auth.getUser()
   const firstName = user?.email?.split('@')[0] || 'there'
 
@@ -63,10 +63,10 @@ export default async function DashboardPage() {
 
   const prompts = allPrompts || []
   const groupedPrompts = groupPromptsByDate(prompts)
-  
+
   // Stats
   const totalPrompts = prompts.length
-  const todayPrompts = prompts.filter(p => 
+  const todayPrompts = prompts.filter(p =>
     new Date(p.created_at).toDateString() === new Date().toDateString()
   ).length
 
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">
           Welcome back, {firstName.charAt(0).toUpperCase() + firstName.slice(1)}
         </h1>
-        
+
         <div className="flex items-center gap-4 text-sm text-muted">
           <div className="flex items-center gap-1.5">
             <span>🔥</span>
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
               <h2 className="text-xs font-medium text-muted tracking-wide mb-3">
                 {group.label}
               </h2>
-              
+
               <div className="bg-card border border-card rounded-xl overflow-hidden divide-y divide-card-border">
                 {group.prompts.map((prompt: any) => (
                   <div key={prompt.id} className="flex gap-6 px-5 py-4 hover:bg-hover transition-colors">
@@ -114,6 +114,29 @@ export default async function DashboardPage() {
                           {prompt.response}
                         </p>
                       )}
+                      <div className="flex items-center gap-2 mt-2">
+                        {prompt.tools_used && prompt.tools_used.length > 0 && (
+                          prompt.tools_used.map((tool: string) => (
+                            <span
+                              key={tool}
+                              className={`text-xs px-2 py-0.5 rounded-full ${tool.startsWith('calendar')
+                                ? 'bg-blue-500/10 text-blue-400'
+                                : tool.startsWith('gmail')
+                                  ? 'bg-red-500/10 text-red-400'
+                                  : (tool === 'transcription_log' || tool === 'transcription')
+                                    ? 'bg-purple-500/10 text-purple-400'
+                                    : 'bg-gray-500/10 text-gray-400'
+                                }`}
+                            >
+                              {tool === 'calendar_create' && '📅 Created'}
+                              {tool === 'calendar_delete' && '📅 Deleted'}
+                              {tool === 'calendar_query' && '📅 Calendar'}
+                              {tool === 'gmail_query' && '📧 Email'}
+                              {(tool === 'transcription_log' || tool === 'transcription') && '📝 Transcription'}
+                            </span>
+                          ))
+                        )}
+                      </div>
                     </div>
                     {prompt.screenshot_url && (
                       <span className="text-muted text-sm" title="Screen capture included">

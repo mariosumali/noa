@@ -114,9 +114,11 @@ export default async function HistoryPage() {
                             <span
                               key={tool}
                               className={`text-xs px-2 py-0.5 rounded-full ${tool.startsWith('calendar')
-                                  ? 'bg-blue-500/10 text-blue-400'
-                                  : tool.startsWith('gmail')
-                                    ? 'bg-red-500/10 text-red-400'
+                                ? 'bg-blue-500/10 text-blue-400'
+                                : tool.startsWith('gmail')
+                                  ? 'bg-red-500/10 text-red-400'
+                                  : (tool === 'transcription_log' || tool === 'transcription')
+                                    ? 'bg-purple-500/10 text-purple-400'
                                     : 'bg-gray-500/10 text-gray-400'
                                 }`}
                             >
@@ -124,6 +126,7 @@ export default async function HistoryPage() {
                               {tool === 'calendar_delete' && '📅 Deleted'}
                               {tool === 'calendar_query' && '📅 Calendar'}
                               {tool === 'gmail_query' && '📧 Email'}
+                              {(tool === 'transcription_log' || tool === 'transcription') && '📝 Transcription'}
                             </span>
                           ))
                         )}
