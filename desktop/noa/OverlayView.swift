@@ -11,7 +11,7 @@ struct OverlayView: View {
             Spacer()
             
             // Response panel (above the pill)
-            if appState.mode == .responding || appState.mode == .processing {
+            if appState.uiMode == .responding || appState.uiMode == .processing {
                 responsePanel
                     .padding(.bottom, 10)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -21,8 +21,8 @@ struct OverlayView: View {
             pillView
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.mode)
-        .onChange(of: appState.mode) { oldValue, newValue in
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.uiMode)
+        .onChange(of: appState.uiMode) { oldValue, newValue in
             if newValue == .listening {
                 startWaveformAnimation()
             } else {
@@ -34,7 +34,7 @@ struct OverlayView: View {
     // MARK: - Response Panel
     private var responsePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if appState.mode == .processing {
+            if appState.uiMode == .processing {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.6)
@@ -45,7 +45,7 @@ struct OverlayView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
-            } else if appState.mode == .responding {
+            } else if appState.uiMode == .responding {
                 // User's question
                 if !appState.transcribedText.isEmpty {
                     Text(appState.transcribedText)
@@ -55,7 +55,7 @@ struct OverlayView: View {
                 }
                 
                 // AI Response
-                Text(appState.responseText)
+                Text(appState.aiResponse)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                     .fixedSize(horizontal: false, vertical: true)
@@ -63,7 +63,7 @@ struct OverlayView: View {
             }
             
             // Error message
-            if let error = appState.errorMessage {
+            if let error = appState.apiError {
                 Text(error)
                     .font(.system(size: 11))
                     .foregroundColor(.red.opacity(0.9))
@@ -86,7 +86,7 @@ struct OverlayView: View {
     // MARK: - Small Pill (fixed position)
     private var pillView: some View {
         Group {
-            if appState.mode == .listening {
+            if appState.uiMode == .listening {
                 // Expanded pill with waveform
                 HStack(spacing: 2) {
                     ForEach(0..<14, id: \.self) { i in

@@ -131,7 +131,7 @@ struct MenuBarView: View {
     }
     
     private var statusColor: Color {
-        switch appState.mode {
+        switch appState.uiMode {
         case .idle: return .green
         case .listening: return .orange
         case .processing: return .yellow
@@ -140,7 +140,7 @@ struct MenuBarView: View {
     }
     
     private var statusText: String {
-        switch appState.mode {
+        switch appState.uiMode {
         case .idle: return "Ready"
         case .listening: return "Listening"
         case .processing: return "Processing"
