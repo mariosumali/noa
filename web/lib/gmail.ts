@@ -1,7 +1,11 @@
 import { google } from 'googleapis'
 import { createServerSupabaseClient } from './supabase'
 
-const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+const SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+]
 
 // Create OAuth2 client
 export function createOAuth2Client() {
@@ -33,7 +37,7 @@ export async function getTokensFromCode(code: string) {
 // Get Gmail client for a user
 export async function getGmailClient(userId: string) {
   const supabase = createServerSupabaseClient()
-  
+
   // Get stored tokens
   const { data: integration, error } = await supabase
     .from('user_integrations')
@@ -55,11 +59,11 @@ export async function getGmailClient(userId: string) {
   // Check if token needs refresh
   const now = new Date()
   const expiresAt = new Date(integration.token_expires_at)
-  
+
   if (now >= expiresAt && integration.refresh_token) {
     try {
       const { credentials } = await oauth2Client.refreshAccessToken()
-      
+
       // Update stored tokens
       await supabase
         .from('user_integrations')
@@ -105,7 +109,7 @@ function parseHeaders(headers: { name: string; value: string }[]) {
 // Get unread email count
 export async function getUnreadCount(userId: string): Promise<number> {
   const gmail = await getGmailClient(userId)
-  
+
   const response = await gmail.users.messages.list({
     userId: 'me',
     q: 'is:unread',
@@ -118,7 +122,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
 // Get unread emails
 export async function getUnreadEmails(userId: string, limit = 10): Promise<Email[]> {
   const gmail = await getGmailClient(userId)
-  
+
   const listResponse = await gmail.users.messages.list({
     userId: 'me',
     q: 'is:unread',
@@ -130,7 +134,7 @@ export async function getUnreadEmails(userId: string, limit = 10): Promise<Email
   }
 
   const emails: Email[] = []
-  
+
   for (const msg of listResponse.data.messages.slice(0, limit)) {
     const detail = await gmail.users.messages.get({
       userId: 'me',
@@ -140,7 +144,7 @@ export async function getUnreadEmails(userId: string, limit = 10): Promise<Email
     })
 
     const headers = parseHeaders(detail.data.payload?.headers || [])
-    
+
     emails.push({
       id: msg.id!,
       threadId: msg.threadId!,
@@ -160,7 +164,7 @@ export async function getUnreadEmails(userId: string, limit = 10): Promise<Email
 // Search emails
 export async function searchEmails(userId: string, query: string, limit = 10): Promise<Email[]> {
   const gmail = await getGmailClient(userId)
-  
+
   const listResponse = await gmail.users.messages.list({
     userId: 'me',
     q: query,
@@ -172,7 +176,7 @@ export async function searchEmails(userId: string, query: string, limit = 10): P
   }
 
   const emails: Email[] = []
-  
+
   for (const msg of listResponse.data.messages.slice(0, limit)) {
     const detail = await gmail.users.messages.get({
       userId: 'me',
@@ -182,7 +186,7 @@ export async function searchEmails(userId: string, query: string, limit = 10): P
     })
 
     const headers = parseHeaders(detail.data.payload?.headers || [])
-    
+
     emails.push({
       id: msg.id!,
       threadId: msg.threadId!,
@@ -216,8 +220,8 @@ export function formatEmailsForContext(emails: Email[]): string {
   }
 
   return emails.map((email, i) => {
-    const dateStr = email.date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    const dateStr = email.date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit'
@@ -237,7 +241,7 @@ export function isGmailQuery(text: string): boolean {
     'any new email', 'new messages',
     'who emailed', 'who sent',
   ]
-  
+
   const lowercased = text.toLowerCase()
   return keywords.some(keyword => lowercased.includes(keyword))
 }
@@ -249,13 +253,13 @@ export function extractSenderFromQuery(text: string): string | null {
     /(?:from|by) (\w+(?:\s+\w+)?)/i,
     /(\w+(?:\s+\w+)?) (?:email|sent|wrote)/i,
   ]
-  
+
   for (const pattern of patterns) {
     const match = text.match(pattern)
     if (match) {
       return match[1].trim()
     }
   }
-  
+
   return null
 }
