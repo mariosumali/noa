@@ -32,12 +32,13 @@
 - [x] Connect to Supabase
 
 ### Phase 5: API Routes
-- [x] POST /api/process - AI processing
+- [x] POST /api/process - AI processing with vision
 - [x] GET /api/prompts - Get history
 - [x] POST /api/auth/login - Desktop login
 - [x] POST /api/auth/signup - Desktop signup
-- [x] OpenAI GPT-4 integration
+- [x] OpenAI GPT-4o integration
 - [x] Whisper API integration
+- [x] GPT-4 Vision for screenshots
 
 ### Phase 6: Desktop App (macOS)
 - [x] Create Xcode project
@@ -52,8 +53,16 @@
 - [x] Settings window
 - [x] History view
 - [x] Device ID tracking for prompts
+- [x] AppState singleton pattern
+- [x] Symlink setup for development
 
-### Phase 7: Integration & Polish
+### Phase 7: Screen Capture
+- [x] ScreenCaptureKit implementation
+- [x] Keyword detection for screen queries
+- [x] GPT-4 Vision integration
+- [x] Base64 image encoding
+
+### Phase 8: Integration & Polish
 - [x] End-to-end testing
 - [x] Error handling
 - [x] Loading states
@@ -63,7 +72,7 @@
 
 ## 🔄 In Progress
 
-- [ ] Screen capture integration (disabled due to permission issues)
+- [ ] Screen capture permissions (requires Apple Developer Program for stable signing)
 - [ ] UI polish and animations
 
 ---
@@ -86,6 +95,7 @@
 - [ ] Launch at login
 - [ ] Custom hotkey configuration
 - [ ] Auto-update mechanism
+- [ ] Proper code signing (Apple Developer Program)
 
 ---
 

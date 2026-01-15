@@ -10,8 +10,9 @@ Hold **Option (⌥)** to speak, get instant AI-powered answers displayed in a sl
 
 ### Desktop App (macOS)
 - 🎤 **Voice-activated** — Hold Option key to speak
-- 💬 **AI responses** — Powered by GPT-4
-- 🖥️ **Minimal UI** — Tiny pill overlay that expands for responses
+- 💬 **AI responses** — Powered by GPT-4o
+- 🖥️ **Screen awareness** — Ask "What's on my screen?" for visual context
+- 📱 **Minimal UI** — Tiny pill overlay that expands for responses
 - 📋 **Menu bar app** — Quick access to history, settings, account
 - 🔐 **Account sync** — Login to sync prompts across devices
 
@@ -55,19 +56,30 @@ open desktop/noa.xcodeproj
 ```
 
 ### 4. Use noa
-- Look for the **waveform icon** in your menu bar
+- Look for the **noa icon** in your menu bar
 - Hold **Option (⌥)** and speak
 - Release to get your answer
+- Try: "What's on my screen?" for visual context
+
+## Screen Capture Keywords
+
+noa will capture your screen when you ask about:
+- "What's on my screen?"
+- "What am I looking at?"
+- "Explain this"
+- "Read this"
+- "Describe this"
+- "Help me with this"
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Desktop App | Swift / SwiftUI |
+| Desktop App | Swift / SwiftUI / ScreenCaptureKit |
 | Web App | Next.js 14, React, Tailwind CSS |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
-| AI | OpenAI GPT-4, Whisper |
+| AI | OpenAI GPT-4o, GPT-4 Vision, Whisper |
 | Hosting | Vercel |
 
 ## Project Structure
@@ -89,6 +101,13 @@ noa/
 └── BUGS.md            # Bug tracking
 ```
 
+## Development Setup
+
+For easier development, create a symlink so Xcode edits appear in git:
+```bash
+ln -s /path/to/noa/desktop ~/Desktop/noa
+```
+
 ## Documentation
 
 - [PLAN.md](./PLAN.md) — Architecture and technical decisions
@@ -98,7 +117,11 @@ noa/
 
 ## Status
 
-✅ **Beta** — Core functionality complete, actively developing
+✅ **Beta** — Core functionality complete, screen capture working (requires permissions)
+
+## Known Limitations
+
+- **Screen capture permissions**: During Xcode development, macOS may prompt for screen recording permission repeatedly. For stable permissions, the app needs to be properly signed with an Apple Developer account.
 
 ## License
 

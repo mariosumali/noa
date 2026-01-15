@@ -3,12 +3,13 @@
 ## Short-term (v0.2)
 
 ### Desktop App
-- [ ] Screen capture on demand ("What's on my screen?")
+- [x] Screen capture on demand ("What's on my screen?") ✅ Implemented
 - [ ] Launch at login option
 - [ ] Custom hotkey configuration
 - [ ] Sound effects (start/stop recording)
 - [ ] Animated waveform improvements
 - [ ] Auto-update mechanism
+- [ ] Proper Apple Developer signing
 
 ### Web Dashboard
 - [ ] Dark mode toggle
