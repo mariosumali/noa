@@ -14,7 +14,7 @@ class AppState: ObservableObject {
     @Published var transcribedText: String = ""
     @Published var aiResponse: String = ""
     @Published var userId: String?
-    @Published var deviceId: String
+    @Published var deviceId: String = ""
     @Published var showLoginWindow: Bool = false
     @Published var showSettingsWindow: Bool = false
     @Published var showHistoryWindow: Bool = false
@@ -24,15 +24,14 @@ class AppState: ObservableObject {
     @Published var apiError: String?
 
     private var audioRecorder = AudioRecorder()
-    private var apiClient: APIClient { APIClient.shared }
     private var waveformTimer: Timer?
 
     init() {
-        self.deviceId = apiClient.getDeviceId()
-        
+        // Load device ID from UserDefaults or generate new one
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
             self.deviceId = savedDeviceId
         } else {
+            self.deviceId = APIClient.shared.getDeviceId()
             UserDefaults.standard.set(self.deviceId, forKey: "deviceId")
         }
     }
@@ -69,7 +68,7 @@ class AppState: ObservableObject {
 
             Task {
                 do {
-                    let transcription = try await self.apiClient.transcribeAudio(audioData)
+                    let transcription = try await APIClient.shared.transcribeAudio(audioData)
                     await MainActor.run {
                         self.transcribedText = transcription
                     }
@@ -86,7 +85,7 @@ class AppState: ObservableObject {
                         }
                     }
 
-                    let response = try await self.apiClient.processText(text: transcription, screenshot: screenshotBase64)
+                    let response = try await APIClient.shared.processText(text: transcription, screenshot: screenshotBase64)
                     
                     await MainActor.run {
                         self.aiResponse = response
