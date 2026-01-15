@@ -420,6 +420,7 @@ struct OverlayView: View {
         if tool.contains("calendar") { return "calendar" }
         if tool.contains("gmail") { return "envelope" }
         if tool.contains("transcription") { return "keyboard" }
+        if tool.contains("screen") { return "display" }
         return "wrench.and.screwdriver"
     }
     
@@ -427,6 +428,7 @@ struct OverlayView: View {
         if tool.contains("calendar") { return .blue }
         if tool.contains("gmail") { return .red }
         if tool.contains("transcription") { return .purple }
+        if tool.contains("screen") { return .indigo }
         return .gray
     }
     
@@ -436,6 +438,7 @@ struct OverlayView: View {
         if tool == "calendar_query" { return "Calendar" }
         if tool == "gmail_query" { return "Email Found" }
         if tool.contains("transcription") { return "Copied to clipboard" }
+        if tool.contains("screen") { return "Screen Check" }
         return tool.replacingOccurrences(of: "_", with: " ").capitalized
     }
 }
