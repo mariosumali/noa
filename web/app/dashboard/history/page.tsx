@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -53,10 +54,15 @@ export default async function HistoryPage() {
 
   const { data: { user } } = await supabaseAuth.auth.getUser()
 
-  // Fetch all prompts
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Fetch user's prompts
   const { data: allPrompts } = await supabaseAdmin
     .from('prompts')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(200)
 

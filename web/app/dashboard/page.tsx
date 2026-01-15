@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
@@ -52,12 +53,18 @@ export default async function DashboardPage() {
   const supabaseAdmin = createServerSupabaseClient()
 
   const { data: { user } } = await supabaseAuth.auth.getUser()
-  const firstName = user?.email?.split('@')[0] || 'there'
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const firstName = user.email?.split('@')[0] || 'there'
 
   // Fetch prompts
   const { data: allPrompts } = await supabaseAdmin
     .from('prompts')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(100)
 
