@@ -119,7 +119,9 @@ export default async function HistoryPage() {
                                   ? 'bg-red-500/10 text-red-400'
                                   : (tool === 'transcription_log' || tool === 'transcription')
                                     ? 'bg-purple-500/10 text-purple-400'
-                                    : 'bg-gray-500/10 text-gray-400'
+                                    : (tool === 'screen_capture')
+                                      ? 'bg-indigo-500/10 text-indigo-400'
+                                      : 'bg-gray-500/10 text-gray-400'
                                 }`}
                             >
                               {tool === 'calendar_create' && '📅 Created'}
@@ -127,6 +129,7 @@ export default async function HistoryPage() {
                               {tool === 'calendar_query' && '📅 Calendar'}
                               {tool === 'gmail_query' && '📧 Email'}
                               {(tool === 'transcription_log' || tool === 'transcription') && '📝 Transcription'}
+                              {tool === 'screen_capture' && '🖥️ Screen'}
                             </span>
                           ))
                         )}
