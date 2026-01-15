@@ -70,7 +70,7 @@ class AppState: ObservableObject {
 
             Task {
                 do {
-                    let transcription = try await self.apiClient.transcribeAudio(audioData: audioData)
+                    let transcription = try await self.apiClient.transcribeAudio( audioData)
                     await MainActor.run {
                         self.transcribedText = transcription
                     }
