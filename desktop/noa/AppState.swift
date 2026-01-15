@@ -110,6 +110,9 @@ class AppState: ObservableObject {
                         self.aiResponse = response
                         self.uiMode = .responding
                         self.isProcessingAPI = false
+                        
+                        // Speak the response if TTS is enabled
+                        TextToSpeech.shared.speak(response)
                     }
                 } catch {
                     await MainActor.run {

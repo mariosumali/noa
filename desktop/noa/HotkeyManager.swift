@@ -5,25 +5,36 @@ import Carbon
 class HotkeyManager {
     static let shared = HotkeyManager()
     
-    private var eventMonitor: Any?
     private var flagsMonitor: Any?
-    private var isOptionPressed = false
+    private var localFlagsMonitor: Any?
+    private var isKeyPressed = false
     
-    private init() {}
+    private init() {
+        // Listen for hotkey changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(hotkeyDidChange),
+            name: .hotkeyChanged,
+            object: nil
+        )
+    }
     
     func startListening() {
-        // Monitor for modifier key changes (Option key)
+        stopListening() // Clear any existing monitors
+        
+        let hotkey = NoaSettings.shared.hotkey
+        print("Hotkey listener started - Hold \(hotkey.displayName) to speak")
+        
+        // Monitor for modifier key changes
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
         
         // Also monitor local events
-        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+        localFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
             return event
         }
-        
-        print("Hotkey listener started - Hold Option (⌥) to speak")
     }
     
     func stopListening() {
@@ -31,22 +42,31 @@ class HotkeyManager {
             NSEvent.removeMonitor(monitor)
             flagsMonitor = nil
         }
-        if let monitor = eventMonitor {
+        if let monitor = localFlagsMonitor {
             NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
+            localFlagsMonitor = nil
+        }
+        isKeyPressed = false
+    }
+    
+    @objc private func hotkeyDidChange() {
+        // Restart listening with new hotkey
+        if flagsMonitor != nil {
+            startListening()
         }
     }
     
     private func handleFlagsChanged(_ event: NSEvent) {
-        let optionPressed = event.modifierFlags.contains(.option)
+        let hotkey = NoaSettings.shared.hotkey
+        let keyPressed = event.modifierFlags.contains(hotkey.modifierFlag)
         
-        if optionPressed && !isOptionPressed {
-            // Option key pressed down
-            isOptionPressed = true
+        if keyPressed && !isKeyPressed {
+            // Key pressed down
+            isKeyPressed = true
             onKeyDown()
-        } else if !optionPressed && isOptionPressed {
-            // Option key released
-            isOptionPressed = false
+        } else if !keyPressed && isKeyPressed {
+            // Key released
+            isKeyPressed = false
             onKeyUp()
         }
     }
@@ -61,5 +81,10 @@ class HotkeyManager {
         DispatchQueue.main.async {
             AppState.shared.stopListening()
         }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        stopListening()
     }
 }

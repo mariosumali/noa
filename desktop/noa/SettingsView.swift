@@ -8,6 +8,16 @@ struct SettingsView: View {
     @State private var backendURL = Config.shared.backendURL
     @State private var apiKeySet = !Config.shared.openAIKey.isEmpty
     
+    private var speechRateLabel: String {
+        if settings.speechRate < 0.3 {
+            return "Slow"
+        } else if settings.speechRate < 0.5 {
+            return "Normal"
+        } else {
+            return "Fast"
+        }
+    }
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -108,20 +118,54 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 4) {
-                            Text("⌥")
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.primary.opacity(0.1))
-                                .cornerRadius(4)
-                            
-                            Text("Option")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                        Picker("", selection: $settings.hotkey) {
+                            ForEach(HotkeyOption.allCases, id: \.self) { option in
+                                Text(option.displayName).tag(option)
+                            }
                         }
+                        .pickerStyle(.menu)
+                        .frame(width: 140)
                     }
                     .padding(.vertical, 4)
+                }
+                
+                // Text-to-Speech
+                SettingsSection(title: "Text-to-Speech") {
+                    SettingsToggle(
+                        title: "Speak Responses",
+                        description: "noa will read responses aloud",
+                        isOn: $settings.textToSpeechEnabled
+                    )
+                    
+                    if settings.textToSpeechEnabled {
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Speech Rate")
+                                    .font(.system(size: 13, weight: .medium))
+                                Spacer()
+                                Text(speechRateLabel)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $settings.speechRate, in: 0.1...0.75, step: 0.05)
+                            
+                            Text("Adjust how fast noa speaks")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                        
+                        Button("Test Speech") {
+                            TextToSpeech.shared.speak("Hello! I'm noa, your AI assistant.")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .padding(.top, 4)
+                    }
                 }
                 
                 // API Configuration
@@ -185,7 +229,7 @@ struct SettingsView: View {
             }
             .padding(24)
         }
-        .frame(width: 480, height: 580)
+        .frame(width: 480, height: 720)
         .onAppear {
             loadSettings()
         }
