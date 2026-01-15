@@ -3,6 +3,7 @@ import SwiftUI
 struct OverlayView: View {
     @ObservedObject var appState = AppState.shared
     @State private var waveformPhase: CGFloat = 0
+    @State private var animationTimer: Timer?
     
     private var isExpanded: Bool {
         appState.mode != .idle
@@ -21,8 +22,26 @@ struct OverlayView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isExpanded)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: appState.mode)
+        .onChange(of: appState.mode) { oldValue, newValue in
+            if newValue == .listening {
+                startWaveformAnimation()
+            } else {
+                stopWaveformAnimation()
+            }
+        }
+    }
+    
+    private func startWaveformAnimation() {
+        waveformPhase = 0
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            waveformPhase += 0.15
+        }
+    }
+    
+    private func stopWaveformAnimation() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        waveformPhase = 0
     }
     
     // MARK: - Collapsed State (tiny pill)
@@ -40,7 +59,6 @@ struct OverlayView: View {
     // MARK: - Expanded State
     private var expandedView: some View {
         VStack(spacing: 10) {
-            // Content based on mode
             Group {
                 if appState.mode == .listening {
                     listeningView
@@ -51,7 +69,6 @@ struct OverlayView: View {
                 }
             }
             
-            // Error message
             if let error = appState.errorMessage {
                 Text(error)
                     .font(.system(size: 11))
@@ -85,22 +102,10 @@ struct OverlayView: View {
     private var listeningView: some View {
         HStack(spacing: 2) {
             ForEach(0..<16, id: \.self) { i in
-                WaveformBar(
-                    index: i,
-                    phase: waveformPhase,
-                    isActive: appState.mode == .listening
-                )
+                WaveformBar(index: i, phase: waveformPhase)
             }
         }
         .frame(height: 24)
-        .onAppear {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                waveformPhase = .pi * 2
-            }
-        }
-        .onDisappear {
-            waveformPhase = 0
-        }
     }
     
     // MARK: - Processing View
@@ -140,9 +145,8 @@ struct OverlayView: View {
 struct WaveformBar: View {
     let index: Int
     let phase: CGFloat
-    let isActive: Bool
     
-    private var animatedHeight: CGFloat {
+    private var barHeight: CGFloat {
         let baseHeight: CGFloat = 3
         let maxHeight: CGFloat = 20
         let frequency = 0.7
@@ -163,8 +167,7 @@ struct WaveformBar: View {
                     endPoint: .bottom
                 )
             )
-            .frame(width: 2, height: isActive ? animatedHeight : 3)
-            .animation(.easeInOut(duration: 0.08), value: animatedHeight)
+            .frame(width: 2, height: barHeight)
     }
 }
 

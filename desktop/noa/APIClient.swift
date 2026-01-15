@@ -13,13 +13,17 @@ class APIClient {
     private let deviceId: String
     
     private init() {
-        // Generate a persistent device ID
-        deviceId = APIClient.getDeviceId()
+        deviceId = APIClient.generateDeviceId()
         print("APIClient initialized with device: \(deviceId)")
     }
     
+    /// Public accessor for device ID
+    func getDeviceId() -> String {
+        return deviceId
+    }
+    
     /// Get a unique device identifier
-    private static func getDeviceId() -> String {
+    private static func generateDeviceId() -> String {
         // Try to get hardware UUID
         let platformExpert = IOServiceGetMatchingService(
             kIOMainPortDefault,
@@ -84,7 +88,7 @@ class APIClient {
         
         var body = Data()
         
-        // Add file field - using m4a format
+        // Add file field
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
@@ -122,7 +126,6 @@ class APIClient {
             return transcription.text
         } catch let error as URLError {
             print("APIClient: Network error: \(error.localizedDescription)")
-            print("APIClient: Error code: \(error.code.rawValue)")
             throw APIError.networkError(error.localizedDescription)
         } catch {
             print("APIClient: Error: \(error)")
@@ -143,13 +146,18 @@ class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
         
+        // Include user_id if logged in
         var body: [String: Any] = [
             "text": text,
             "device_id": deviceId
         ]
+        
+        if let userId = AuthManager.shared.getUserId() {
+            body["user_id"] = userId
+        }
+        
         if let screenshot = screenshot {
             body["screenshot"] = screenshot
-            print("APIClient: Including screenshot")
         }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

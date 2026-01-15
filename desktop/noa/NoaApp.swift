@@ -6,6 +6,7 @@ struct NoaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
+        // Empty scene - we manage windows manually
         Settings {
             EmptyView()
         }
@@ -15,66 +16,127 @@ struct NoaApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var overlayWindow: OverlayWindow?
     var statusItem: NSStatusItem?
-    let appState = AppState.shared
+    var popover: NSPopover?
+    var loginWindow: NSWindow?
+    var settingsWindow: NSWindow?
+    var historyWindow: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide dock icon
+        // Hide dock icon - menu bar app only
         NSApp.setActivationPolicy(.accessory)
         
-        // Create menu bar icon
+        // Set up menu bar
         setupMenuBar()
         
-        // Create overlay window
-        setupOverlayWindow()
+        // Set up overlay window
+        overlayWindow = OverlayWindow()
+        overlayWindow?.orderFront(nil)
         
-        // Start hotkey listener
+        // Set up hotkey listener
         HotkeyManager.shared.startListening()
         
-        // Request permissions
-        requestPermissions()
+        // Check if logged in
+        checkAuthStatus()
+        
+        print("noa started - Menu bar app ready")
     }
     
-    func setupMenuBar() {
+    private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "noa")
+            button.action = #selector(togglePopover)
+            button.target = self
         }
         
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Show noa", action: #selector(showOverlay), keyEquivalent: "n"))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
-        
-        statusItem?.menu = menu
+        // Create popover for menu
+        popover = NSPopover()
+        popover?.contentSize = NSSize(width: 280, height: 360)
+        popover?.behavior = .transient
+        popover?.contentViewController = NSHostingController(rootView: MenuBarView(delegate: self))
     }
     
-    func setupOverlayWindow() {
-        overlayWindow = OverlayWindow()
-        overlayWindow?.makeKeyAndOrderFront(nil)
-    }
-    
-    func requestPermissions() {
-        // Request microphone access
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            if granted {
-                print("Microphone access granted")
+    @objc func togglePopover() {
+        if let button = statusItem?.button {
+            if popover?.isShown == true {
+                popover?.performClose(nil)
             } else {
-                print("Microphone access denied")
+                popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
+    }
+    
+    func checkAuthStatus() {
+        // Check if user is logged in via stored token
+        if let _ = UserDefaults.standard.string(forKey: "noa_user_token") {
+            AuthManager.shared.isLoggedIn = true
+            AuthManager.shared.userEmail = UserDefaults.standard.string(forKey: "noa_user_email")
+        }
+    }
+    
+    func showLoginWindow() {
+        popover?.performClose(nil)
         
-        // Request screen recording access (will prompt user)
-        CGRequestScreenCaptureAccess()
+        if loginWindow == nil {
+            loginWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            loginWindow?.title = "Login to noa"
+            loginWindow?.center()
+            loginWindow?.contentView = NSHostingView(rootView: LoginView())
+            loginWindow?.isReleasedWhenClosed = false
+        }
+        
+        loginWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     
-    @objc func showOverlay() {
-        overlayWindow?.makeKeyAndOrderFront(nil)
+    func showSettingsWindow() {
+        popover?.performClose(nil)
+        
+        if settingsWindow == nil {
+            settingsWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 450, height: 400),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            settingsWindow?.title = "noa Settings"
+            settingsWindow?.center()
+            settingsWindow?.contentView = NSHostingView(rootView: SettingsView())
+            settingsWindow?.isReleasedWhenClosed = false
+        }
+        
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     
-    @objc func quitApp() {
+    func showHistoryWindow() {
+        popover?.performClose(nil)
+        
+        if historyWindow == nil {
+            historyWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 500, height: 600),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            historyWindow?.title = "noa History"
+            historyWindow?.center()
+            historyWindow?.contentView = NSHostingView(rootView: HistoryView())
+            historyWindow?.isReleasedWhenClosed = false
+        }
+        
+        historyWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    func quitApp() {
         NSApp.terminate(nil)
     }
 }
-
-import AVFoundation
