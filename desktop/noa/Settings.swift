@@ -22,6 +22,43 @@ enum OverlayPosition: String, CaseIterable {
     }
 }
 
+enum PillColor: String, CaseIterable {
+    case black = "black"
+    case white = "white"
+    case blue = "blue"
+    case purple = "purple"
+    case green = "green"
+    case orange = "orange"
+    case red = "red"
+    case pink = "pink"
+    case teal = "teal"
+    
+    var displayName: String {
+        rawValue.capitalized
+    }
+    
+    var color: Color {
+        switch self {
+        case .black: return Color.black
+        case .white: return Color.white
+        case .blue: return Color.blue
+        case .purple: return Color.purple
+        case .green: return Color.green
+        case .orange: return Color.orange
+        case .red: return Color.red
+        case .pink: return Color.pink
+        case .teal: return Color.teal
+        }
+    }
+    
+    var textColor: Color {
+        switch self {
+        case .white: return Color.black
+        default: return Color.white
+        }
+    }
+}
+
 enum HotkeyOption: String, CaseIterable {
     case option = "option"
     case control = "control"
@@ -94,6 +131,12 @@ class NoaSettings: ObservableObject {
         }
     }
     
+    @Published var pillColor: PillColor {
+        didSet {
+            UserDefaults.standard.set(pillColor.rawValue, forKey: "pillColor")
+        }
+    }
+    
     private init() {
         self.overlayOpacity = UserDefaults.standard.object(forKey: "overlayOpacity") as? Double ?? 0.88
         
@@ -115,6 +158,13 @@ class NoaSettings: ObservableObject {
         
         self.textToSpeechEnabled = UserDefaults.standard.bool(forKey: "textToSpeechEnabled")
         self.speechRate = UserDefaults.standard.object(forKey: "speechRate") as? Float ?? 0.5
+        
+        if let colorString = UserDefaults.standard.string(forKey: "pillColor"),
+           let color = PillColor(rawValue: colorString) {
+            self.pillColor = color
+        } else {
+            self.pillColor = .black
+        }
     }
 }
 

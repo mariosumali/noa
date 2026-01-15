@@ -29,6 +29,9 @@ class TextToSpeech: NSObject, AVSpeechSynthesizerDelegate {
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
         
+        // Add a small pause at the beginning to prevent cutoff
+        utterance.preUtteranceDelay = 0.3
+        
         // Use a nice voice
         if let voice = AVSpeechSynthesisVoice(language: "en-US") {
             utterance.voice = voice

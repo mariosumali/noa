@@ -23,6 +23,42 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Overlay Appearance
                 SettingsSection(title: "Overlay Appearance") {
+                    // Pill Color
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Pill Color")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Color of the noa pill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 6) {
+                            ForEach(PillColor.allCases, id: \.self) { color in
+                                Circle()
+                                    .fill(color.color)
+                                    .frame(width: 20, height: 20)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(settings.pillColor == color ? Color.accentColor : Color.clear, lineWidth: 2)
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
+                                    )
+                                    .onTapGesture {
+                                        settings.pillColor = color
+                                    }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                    
                     // Position
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -229,7 +265,7 @@ struct SettingsView: View {
             }
             .padding(24)
         }
-        .frame(width: 480, height: 720)
+        .frame(width: 480, height: 780)
         .onAppear {
             loadSettings()
         }

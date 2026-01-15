@@ -201,18 +201,21 @@ struct OverlayView: View {
     
     // MARK: - Horizontal Pill (for top/bottom)
     private var horizontalPillView: some View {
-        Group {
+        let pillColor = settings.pillColor.color
+        let textColor = settings.pillColor.textColor
+        
+        return Group {
             if appState.uiMode == .listening {
                 HStack(spacing: 2) {
                     ForEach(0..<14, id: \.self) { i in
-                        WaveformBar(index: i, phase: waveformPhase, isVertical: false)
+                        WaveformBar(index: i, phase: waveformPhase, isVertical: false, color: textColor)
                     }
                 }
                 .frame(height: 18)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(Capsule().fill(Color.black.opacity(0.9)))
-                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                .background(Capsule().fill(pillColor.opacity(0.9)))
+                .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             } else if appState.uiMode == .typing {
                 HStack(spacing: 4) {
                     Image(systemName: "keyboard")
@@ -222,13 +225,13 @@ struct OverlayView: View {
                 .frame(height: 18)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .background(Capsule().fill(pillColor.opacity(0.9)))
                 .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
             } else {
                 Capsule()
-                    .fill(Color.black.opacity(0.85))
+                    .fill(pillColor.opacity(0.85))
                     .frame(width: 56, height: 20)
-                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                    .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
@@ -236,18 +239,21 @@ struct OverlayView: View {
     
     // MARK: - Vertical Pill (for left/right)
     private var verticalPillView: some View {
-        Group {
+        let pillColor = settings.pillColor.color
+        let textColor = settings.pillColor.textColor
+        
+        return Group {
             if appState.uiMode == .listening {
                 VStack(spacing: 2) {
                     ForEach(0..<10, id: \.self) { i in
-                        WaveformBar(index: i, phase: waveformPhase, isVertical: true)
+                        WaveformBar(index: i, phase: waveformPhase, isVertical: true, color: textColor)
                     }
                 }
                 .frame(width: 18)
                 .padding(.vertical, 14)
                 .padding(.horizontal, 7)
-                .background(Capsule().fill(Color.black.opacity(0.9)))
-                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                .background(Capsule().fill(pillColor.opacity(0.9)))
+                .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             } else if appState.uiMode == .typing {
                 VStack(spacing: 4) {
                     Image(systemName: "keyboard")
@@ -258,13 +264,13 @@ struct OverlayView: View {
                 .frame(width: 18)
                 .padding(.vertical, 14)
                 .padding(.horizontal, 7)
-                .background(Capsule().fill(Color.black.opacity(0.9)))
+                .background(Capsule().fill(pillColor.opacity(0.9)))
                 .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.5))
             } else {
                 Capsule()
-                    .fill(Color.black.opacity(0.85))
+                    .fill(pillColor.opacity(0.85))
                     .frame(width: 20, height: 56)
-                    .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                    .overlay(Capsule().stroke(textColor.opacity(0.1), lineWidth: 0.5))
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 8, x: 4)
@@ -328,6 +334,7 @@ struct WaveformBar: View {
     let index: Int
     let phase: CGFloat
     let isVertical: Bool
+    var color: Color = .white
     
     private var barSize: CGFloat {
         let baseSize: CGFloat = 3
@@ -345,7 +352,7 @@ struct WaveformBar: View {
         RoundedRectangle(cornerRadius: 1)
             .fill(
                 LinearGradient(
-                    colors: [.white.opacity(0.9), .white.opacity(0.4)],
+                    colors: [color.opacity(0.9), color.opacity(0.4)],
                     startPoint: isVertical ? .leading : .top,
                     endPoint: isVertical ? .trailing : .bottom
                 )
