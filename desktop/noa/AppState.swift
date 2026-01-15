@@ -149,14 +149,16 @@ class AppState: ObservableObject {
                     KeyboardTyper.typeText(textToType)
                     
                     // Auto-paste if enabled
-                    var feedbackMessage = "Copied! Press ⌘V to paste"
+                    var currentFeedbackMessage = "Copied! Press ⌘V to paste"
                     if NoaSettings.shared.autoPaste {
                         // Small delay to ensure clipboard is ready
                         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                         KeyboardTyper.pasteFromClipboard()
-                        feedbackMessage = "Pasted!"
+                        currentFeedbackMessage = "Pasted!"
                     }
                     
+                    let feedbackMessage = currentFeedbackMessage // Capture as immutable let
+
                     // Log to history without AI processing
                     let result = try await APIClient.shared.logTranscription(text: textToType)
                     
