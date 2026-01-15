@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     let response: string
     let emailContext: string | null = null
     let calendarContext: string | null = null
+    const toolsUsed: string[] = []  // Track which tools were used
 
     // Check if this is a Calendar query and user has Google connected
     if (user_id && isCalendarQuery(text)) {
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
               minute: '2-digit'
             }) : 'unknown time'
             calendarContext = `[EVENT CREATED] Successfully created: "${event.summary}" on ${formattedTime}.`
+            toolsUsed.push('calendar_create')
           } catch (createError) {
             console.error('Failed to create event:', createError)
             calendarContext = '[Failed to create event. Please try again with a clearer time and description.]'
@@ -114,6 +116,7 @@ export async function POST(request: NextRequest) {
               const eventToDelete = matchingEvents[0]
               await deleteEvent(user_id, eventToDelete.id!)
               calendarContext = `[EVENT DELETED] Successfully cancelled: "${eventToDelete.summary}".`
+              toolsUsed.push('calendar_delete')
             } else {
               // Multiple matches - list them for the user
               const eventList = matchingEvents.slice(0, 5).map(e => `- ${e.summary}`).join('\n')
@@ -132,16 +135,19 @@ export async function POST(request: NextRequest) {
             // Fetch events for the specific date
             const events = await getEventsForDate(user_id, parsedDate.offset)
             calendarContext = `You have ${events.length} event(s) on ${parsedDate.label}.\n\n${formatEventsForContext(events)}`
+            toolsUsed.push('calendar_query')
           }
           // Check for upcoming/this week/schedule (general range queries)
           else if (lowercased.includes('upcoming') || lowercased.includes('week') || lowercased.includes('schedule')) {
             const events = await getUpcomingEvents(user_id, 7)
             calendarContext = `Here are your upcoming events:\n\n${formatEventsForContext(events)}`
+            toolsUsed.push('calendar_query')
           }
           // Default: show today's events
           else {
             const events = await getEventsForDate(user_id, 0)
             calendarContext = `Here is your calendar for today:\n\n${formatEventsForContext(events)}`
+            toolsUsed.push('calendar_query')
           }
         }
 
@@ -170,10 +176,12 @@ export async function POST(request: NextRequest) {
           const unreadCount = await getUnreadCount(user_id)
           emails = await getUnreadEmails(user_id, 5)
           emailContext = `You have ${unreadCount} unread emails.\n\nRecent unread:\n${formatEmailsForContext(emails)}`
+          toolsUsed.push('gmail_query')
         }
         // Check for important
         else if (lowercased.includes('important') || lowercased.includes('priority') || lowercased.includes('urgent')) {
           emails = await getImportantEmails(user_id, 5)
+          toolsUsed.push('gmail_query')
         }
         // Check for search terms
         else if (lowercased.includes('search') || lowercased.includes('find')) {
@@ -181,6 +189,7 @@ export async function POST(request: NextRequest) {
           const searchMatch = text.match(/(?:search for|find|about)\s+(.+)/i)
           if (searchMatch) {
             emails = await searchEmails(user_id, searchMatch[1], 5)
+            toolsUsed.push('gmail_query')
           }
         }
         // Check for specific sender (only if not matching above patterns)
@@ -189,9 +198,11 @@ export async function POST(request: NextRequest) {
           if (sender) {
             console.log(`Searching emails from: ${sender}`)
             emails = await getEmailsFrom(user_id, sender, 5)
+            toolsUsed.push('gmail_query')
           } else {
             // Default: get recent unread
             emails = await getUnreadEmails(user_id, 5)
+            toolsUsed.push('gmail_query')
           }
         }
 
@@ -218,10 +229,10 @@ export async function POST(request: NextRequest) {
     const combinedContext = [calendarContext, emailContext].filter(Boolean).join('\n\n---\n\n')
 
     if (screenshot) {
-      console.log(`Processing with vision - text: "${text.substring(0, 50)}...", screenshot: ${Math.round(screenshot.length / 1024)}KB`)
+      console.log(`Processing with vision - text: "${text.substring(0, 50)}...", screenshot: ${Math.round(screenshot.length / 1024)} KB`)
       response = await processPromptWithScreen(text, screenshot)
     } else if (combinedContext) {
-      console.log(`Processing with context (calendar: ${!!calendarContext}, email: ${!!emailContext})`)
+      console.log(`Processing with context(calendar: ${!!calendarContext}, email: ${!!emailContext})`)
       response = await processPromptWithContext(text, combinedContext)
     } else {
       console.log(`Processing text only - "${text.substring(0, 50)}..."`)
@@ -237,10 +248,12 @@ export async function POST(request: NextRequest) {
         screenshot_url: string | null
         user_id?: string
         device_id?: string
+        tools_used?: string[]
       } = {
         text,
         response,
         screenshot_url: screenshot ? 'screenshot_included' : null,
+        tools_used: toolsUsed.length > 0 ? toolsUsed : undefined,
       }
 
       if (user_id) {
@@ -272,7 +285,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response,
-      prompt_id: promptId
+      prompt_id: promptId,
+      tools_used: toolsUsed.length > 0 ? toolsUsed : undefined
     })
   } catch (error) {
     console.error('Process error:', error)
