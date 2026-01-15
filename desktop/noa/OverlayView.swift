@@ -11,7 +11,7 @@ struct OverlayView: View {
             Spacer()
             
             // Response panel (above the pill)
-            if appState.uiMode == .responding || appState.uiMode == .processing {
+            if appState.uiMode == .responding || appState.uiMode == .processing || appState.uiMode == .typing {
                 responsePanel
                     .padding(.bottom, 10)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -22,7 +22,7 @@ struct OverlayView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.uiMode)
-        .onChange(of: appState.uiMode) { oldValue, newValue in
+        .onChange(of: appState.uiMode) { newValue in
             if newValue == .listening {
                 startWaveformAnimation()
             } else {
@@ -45,6 +45,24 @@ struct OverlayView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 4)
+            } else if appState.uiMode == .typing {
+                // Typing mode indicator
+                HStack(spacing: 8) {
+                    Image(systemName: "keyboard")
+                        .foregroundColor(.green)
+                    Text("Typing...")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.green)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 4)
+                
+                // Show what's being typed
+                Text(appState.aiResponse)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(5)
             } else if appState.uiMode == .responding {
                 // User's question
                 if !appState.transcribedText.isEmpty {
@@ -78,7 +96,7 @@ struct OverlayView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                .stroke(appState.uiMode == .typing ? Color.green.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
     }
@@ -103,6 +121,24 @@ struct OverlayView: View {
                 .overlay(
                     Capsule()
                         .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+            } else if appState.uiMode == .typing {
+                // Typing pill (green accent)
+                HStack(spacing: 4) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                }
+                .frame(height: 18)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.9))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.green.opacity(0.3), lineWidth: 0.5)
                 )
             } else {
                 // Tiny idle pill

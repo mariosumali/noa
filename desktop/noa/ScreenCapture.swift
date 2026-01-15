@@ -5,7 +5,8 @@ import ScreenCaptureKit
 class ScreenCapture {
     
     /// Async screen capture using ScreenCaptureKit
-    static func captureMainScreenAsync() async -> String? {
+    @available(macOS 14.0, *)
+    static func captureWithScreenCaptureKit() async -> String? {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             
@@ -44,6 +45,33 @@ class ScreenCapture {
         } catch {
             print("ScreenCapture: ❌ \(error.localizedDescription)")
             return nil
+        }
+    }
+    
+    /// Fallback for older macOS versions using CGWindowListCreateImage
+    static func captureWithCGWindowList() -> String? {
+        guard let displayID = CGMainDisplayID() as CGDirectDisplayID?,
+              let image = CGDisplayCreateImage(displayID) else {
+            print("ScreenCapture: Failed to capture with CGDisplayCreateImage")
+            return nil
+        }
+        
+        let bitmapRep = NSBitmapImageRep(cgImage: image)
+        guard let imageData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.6]) else {
+            print("ScreenCapture: Failed to convert to JPEG")
+            return nil
+        }
+        
+        print("ScreenCapture: ✅ Captured with fallback method (\(imageData.count / 1024) KB)")
+        return imageData.base64EncodedString()
+    }
+    
+    /// Main capture method - uses best available API
+    static func captureMainScreenAsync() async -> String? {
+        if #available(macOS 14.0, *) {
+            return await captureWithScreenCaptureKit()
+        } else {
+            return captureWithCGWindowList()
         }
     }
     

@@ -33,7 +33,6 @@ struct LoginView: View {
                     
                     TextField("you@example.com", text: $email)
                         .textFieldStyle(.roundedBorder)
-                        .textContentType(.emailAddress)
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
@@ -143,8 +142,8 @@ struct LoginView: View {
             .padding(.bottom, 24)
         }
         .frame(width: 400, height: 520)
-        .onChange(of: authManager.isLoggedIn) { oldValue, newValue in
-            if newValue {
+        .onChange(of: authManager.isLoggedIn) { isLoggedIn in
+            if isLoggedIn {
                 NSApp.keyWindow?.close()
             }
         }

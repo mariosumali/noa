@@ -136,6 +136,7 @@ struct MenuBarView: View {
         case .listening: return .orange
         case .processing: return .yellow
         case .responding: return .blue
+        case .typing: return .green
         }
     }
     
@@ -145,6 +146,7 @@ struct MenuBarView: View {
         case .listening: return "Listening"
         case .processing: return "Processing"
         case .responding: return "Response"
+        case .typing: return "Typing"
         }
     }
 }

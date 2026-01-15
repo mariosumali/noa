@@ -7,6 +7,7 @@ enum UIMode {
     case listening
     case processing
     case responding
+    case typing  // New mode for write/transcribe
 }
 
 class AppState: ObservableObject {
@@ -73,6 +74,22 @@ class AppState: ObservableObject {
                     let transcription = try await APIClient.shared.transcribeAudio(audioData)
                     await MainActor.run {
                         self.transcribedText = transcription
+                    }
+                    
+                    // Check if this is a write/transcribe command
+                    if KeyboardTyper.isWriteCommand(transcription) {
+                        let textToType = KeyboardTyper.extractTextToType(transcription)
+                        print("AppState: Write mode - copying: \(textToType)")
+                        
+                        // Copy to clipboard
+                        KeyboardTyper.typeText(textToType)
+                        
+                        await MainActor.run {
+                            self.aiResponse = "Copied! Press ⌘V to paste:\n\"\(textToType)\""
+                            self.uiMode = .responding
+                            self.isProcessingAPI = false
+                        }
+                        return
                     }
 
                     // Check if screen capture needed
