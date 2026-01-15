@@ -28,7 +28,6 @@ class AppState: ObservableObject {
     private var waveformTimer: Timer?
 
     init() {
-        // Use APIClient's device ID
         self.deviceId = apiClient.getDeviceId()
         
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
@@ -70,7 +69,7 @@ class AppState: ObservableObject {
 
             Task {
                 do {
-                    let transcription = try await self.apiClient.transcribeAudio( audioData)
+                    let transcription = try await self.apiClient.transcribeAudio(audioData)
                     await MainActor.run {
                         self.transcribedText = transcription
                     }
@@ -87,12 +86,7 @@ class AppState: ObservableObject {
                         }
                     }
 
-                    let response = try await self.apiClient.processPrompt(
-                        userId: self.userId,
-                        deviceId: self.deviceId,
-                        text: transcription,
-                        screenshot: screenshotBase64
-                    )
+                    let response = try await self.apiClient.processText(text: transcription, screenshot: screenshotBase64)
                     
                     await MainActor.run {
                         self.aiResponse = response
