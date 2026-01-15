@@ -90,6 +90,13 @@
 - [x] Email context for AI responses
 - [x] Integrations UI in settings
 
+### Phase 11: Calendar & Tools
+- [x] Calendar Create/Delete/Query
+- [x] Transcription History & Auto-Paste
+- [x] UI tool badges (Web & Desktop)
+- [x] Screen Capture badges
+- [x] Native Dictation Mode
+
 ---
 
 ## 🔄 In Progress
