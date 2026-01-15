@@ -9,7 +9,8 @@ import {
   getImportantEmails,
   getUnreadCount,
   formatEmailsForContext,
-  extractSenderFromQuery
+  extractSenderFromQuery,
+  getRecentEmails
 } from '@/lib/gmail'
 import {
   isCalendarQuery,
@@ -193,15 +194,25 @@ export async function POST(request: NextRequest) {
           }
         }
         // Check for specific sender (only if not matching above patterns)
+        // Check for specific sender (only if not matching above patterns)
         else {
           const sender = extractSenderFromQuery(text)
           if (sender) {
             console.log(`Searching emails from: ${sender}`)
             emails = await getEmailsFrom(user_id, sender, 5)
             toolsUsed.push('gmail_query')
-          } else {
-            // Default: get recent unread
-            emails = await getUnreadEmails(user_id, 5)
+          }
+          // Check for "last/latest" emails (read or unread)
+          else if (lowercased.includes('last') || lowercased.includes('latest') || lowercased.includes('recent')) {
+            console.log('Fetching recent emails (read & unread)')
+            emails = await getRecentEmails(user_id, 5)
+            toolsUsed.push('gmail_query')
+          }
+          else {
+            // Default query: get recent emails (read & unread) to provide better context
+            // for general queries like "Did I get any emails at 12?"
+            console.log('Fetching general recent emails context')
+            emails = await getRecentEmails(user_id, 10)
             toolsUsed.push('gmail_query')
           }
         }

@@ -98,7 +98,7 @@ export interface Email {
 }
 
 // Parse email headers
-function parseHeaders(headers: { name: string; value: string }[]) {
+function parseHeaders(headers: any[]) {
   const result: Record<string, string> = {}
   for (const header of headers) {
     result[header.name.toLowerCase()] = header.value
@@ -106,17 +106,17 @@ function parseHeaders(headers: { name: string; value: string }[]) {
   return result
 }
 
-// Get unread email count
+// Get unread email count (accurate count from Labels API)
 export async function getUnreadCount(userId: string): Promise<number> {
   const gmail = await getGmailClient(userId)
 
-  const response = await gmail.users.messages.list({
+  // Use Labels API to get accurate unread count from INBOX
+  const response = await gmail.users.labels.get({
     userId: 'me',
-    q: 'is:unread',
-    maxResults: 1,
+    id: 'INBOX',
   })
 
-  return response.data.resultSizeEstimate || 0
+  return response.data.messagesUnread || 0
 }
 
 // Get unread emails
@@ -136,6 +136,48 @@ export async function getUnreadEmails(userId: string, limit = 10): Promise<Email
   const emails: Email[] = []
 
   for (const msg of listResponse.data.messages.slice(0, limit)) {
+    const detail = await gmail.users.messages.get({
+      userId: 'me',
+      id: msg.id!,
+      format: 'metadata',
+      metadataHeaders: ['From', 'To', 'Subject', 'Date'],
+    })
+
+    const headers = parseHeaders(detail.data.payload?.headers || [])
+
+    emails.push({
+      id: msg.id!,
+      threadId: msg.threadId!,
+      from: headers['from'] || 'Unknown',
+      to: headers['to'] || '',
+      subject: headers['subject'] || '(no subject)',
+      snippet: detail.data.snippet || '',
+      date: new Date(headers['date'] || Date.now()),
+      isUnread: detail.data.labelIds?.includes('UNREAD') || false,
+      labels: detail.data.labelIds || [],
+    })
+  }
+
+  return emails
+}
+
+// Get recent emails (read or unread)
+export async function getRecentEmails(userId: string, limit = 10): Promise<Email[]> {
+  const gmail = await getGmailClient(userId)
+
+  const listResponse = await gmail.users.messages.list({
+    userId: 'me',
+    q: 'label:INBOX',
+    maxResults: limit,
+  })
+
+  if (!listResponse.data.messages) {
+    return []
+  }
+
+  const emails: Email[] = []
+
+  for (const msg of listResponse.data.messages) {
     const detail = await gmail.users.messages.get({
       userId: 'me',
       id: msg.id!,
@@ -203,6 +245,92 @@ export async function searchEmails(userId: string, query: string, limit = 10): P
   return emails
 }
 
+// Advanced search parameters
+export interface EmailSearchParams {
+  query?: string       // Free text search
+  sender?: string      // from:
+  to?: string          // to:
+  subject?: string     // subject:
+  after?: Date         // after:YYYY/MM/DD
+  before?: Date        // before:YYYY/MM/DD
+  isUnread?: boolean   // is:unread
+  hasAttachment?: boolean // has:attachment
+  label?: string       // label:
+  limit?: number
+}
+
+// Advanced email search
+export async function searchEmailsAdvanced(userId: string, params: EmailSearchParams): Promise<Email[]> {
+  const gmail = await getGmailClient(userId)
+
+  // Build query string
+  const parts: string[] = []
+
+  if (params.query) parts.push(params.query)
+  if (params.sender) parts.push(`from:${params.sender}`)
+  if (params.to) parts.push(`to:${params.to}`)
+  if (params.subject) parts.push(`subject:${params.subject}`)
+
+  if (params.after) {
+    const dateStr = Math.floor(params.after.getTime() / 1000)
+    parts.push(`after:${dateStr}`)
+  }
+
+  if (params.before) {
+    const dateStr = Math.floor(params.before.getTime() / 1000)
+    parts.push(`before:${dateStr}`)
+  }
+
+  if (params.isUnread) parts.push('is:unread')
+  if (params.hasAttachment) parts.push('has:attachment')
+  if (params.label) parts.push(`label:${params.label}`)
+
+  // Default to INBOX if no label specified and not a broad search
+  if (!params.label && !params.query?.includes('in:')) {
+    parts.push('label:INBOX')
+  }
+
+  const queryString = parts.join(' ')
+  console.log('Gmail Advanced Search:', queryString)
+
+  const listResponse = await gmail.users.messages.list({
+    userId: 'me',
+    q: queryString,
+    maxResults: params.limit || 10,
+  })
+
+  if (!listResponse.data.messages) {
+    return []
+  }
+
+  const emails: Email[] = []
+
+  for (const msg of listResponse.data.messages) {
+    const detail = await gmail.users.messages.get({
+      userId: 'me',
+      id: msg.id!,
+      format: 'metadata',
+      metadataHeaders: ['From', 'To', 'Subject', 'Date'],
+    })
+
+    const headers = parseHeaders(detail.data.payload?.headers || [])
+
+    emails.push({
+      id: msg.id!,
+      threadId: msg.threadId!,
+      from: headers['from'] || 'Unknown',
+      to: headers['to'] || '',
+      subject: headers['subject'] || '(no subject)',
+      snippet: detail.data.snippet || '',
+      date: new Date(headers['date'] || Date.now()),
+      isUnread: detail.data.labelIds?.includes('UNREAD') || false,
+      labels: detail.data.labelIds || [],
+    })
+  }
+
+  return emails
+}
+
 // Get emails from a specific sender
 export async function getEmailsFrom(userId: string, sender: string, limit = 10): Promise<Email[]> {
   return searchEmails(userId, `from:${sender}`, limit)
@@ -240,6 +368,9 @@ export function isGmailQuery(text: string): boolean {
     'summarize email', 'email summary',
     'any new email', 'new messages',
     'who emailed', 'who sent',
+    'unread emails', 'read emails',
+    'last email', 'latest email', 'recent email',
+    'my emails', 'my inbox',
   ]
 
   const lowercased = text.toLowerCase()
@@ -254,10 +385,16 @@ export function extractSenderFromQuery(text: string): string | null {
     /(\w+(?:\s+\w+)?) (?:email|sent|wrote)/i,
   ]
 
+  // Words that shouldn't be considered sender names
+  const invalidNames = ['latest', 'last', 'recent', 'new', 'unread', 'important', 'priority', 'my', 'any', 'check']
+
   for (const pattern of patterns) {
     const match = text.match(pattern)
     if (match) {
-      return match[1].trim()
+      const name = match[1].trim()
+      if (!invalidNames.includes(name.toLowerCase())) {
+        return name
+      }
     }
   }
 
