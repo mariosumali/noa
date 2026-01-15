@@ -103,6 +103,7 @@ CREATE INDEX prompts_created_at_idx ON prompts(created_at DESC);
 |--------|----------|-------------|
 | POST | `/api/auth/login` | Login with email/password |
 | POST | `/api/auth/signup` | Create new account |
+| POST | `/api/auth/set-password` | Set password for Google OAuth users |
 
 ### Processing
 | Method | Endpoint | Description |
@@ -164,7 +165,13 @@ noa/
 │   │   │   │   ├── login/route.ts
 │   │   │   │   └── signup/route.ts
 │   │   │   ├── process/route.ts
-│   │   │   └── prompts/route.ts
+│   │   │   ├── prompts/route.ts
+│   │   │   ├── auth/
+│   │   │   │   ├── login/route.ts
+│   │   │   │   ├── signup/route.ts
+│   │   │   │   └── set-password/route.ts
+│   │   │   └── integrations/
+│   │   │       └── gmail/
 │   │   └── auth/callback/route.ts
 │   │
 │   ├── components/

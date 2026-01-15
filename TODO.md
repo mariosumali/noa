@@ -101,7 +101,8 @@
 ## 📋 Upcoming
 
 ### Polish
-- [ ] Better error messages
+- [x] Better error messages
+- [x] Set Password for Google accounts
 - [ ] Keyboard shortcuts in web app
 - [ ] Dark mode toggle
 - [ ] Notification sounds

@@ -1,25 +1,21 @@
 # noa
 
-**noa** is a personal AI voice assistant for macOS, created by Mario Sumali.
-
-Hold **Option (⌥)** to speak, get instant AI-powered answers displayed in a sleek overlay.
+**noa** is a personal AI voice assistant for macOS. Hold **Option (⌥)** to speak and receive instant responses in a minimal overlay.
 
 ![noa demo](https://img.shields.io/badge/status-beta-blue)
 
 ## Features
 
-### Desktop App (macOS)
-- 🎤 **Voice-activated** — Hold Option key to speak
-- 💬 **AI responses** — Powered by GPT-4o
-- 🖥️ **Screen awareness** — Ask "What's on my screen?" for visual context
-- 📱 **Minimal UI** — Tiny pill overlay that expands for responses
-- 📋 **Menu bar app** — Quick access to history, settings, account
-- 🔐 **Account sync** — Login to sync prompts across devices
+### Desktop App
+- **Voice-Activated**: Global Option key hotkey for instant access.
+- **Screen Awareness**: Visual context for queries like "What's on my screen?".
+- **Minimal Interface**: Unobtrusive overlay that expands only when needed.
+- **System Integration**: Menu bar access, clipboard operations, and native macOS feel.
 
 ### Web Dashboard
-- 📊 **Prompt history** — View all your past queries grouped by date
-- ⚙️ **Settings** — Manage your account and preferences
-- 🎨 **Clean UI** — Wispr Flow-inspired minimal design
+- **History**: Searchable archive of all voice interactions.
+- **Integrations**: Connect external services like Gmail.
+- **Settings**: Manage account preferences and device synchronization.
 
 ## Quick Start
 
@@ -28,100 +24,63 @@ Hold **Option (⌥)** to speak, get instant AI-powered answers displayed in a sl
 - Node.js 18+
 - OpenAI API key
 - Supabase account
+- Google Cloud Project (for Gmail)
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/mariosumali/noa.git
-cd noa
-```
+### Installation
 
-### 2. Set up the web backend
-```bash
-cd web
-npm install
-cp .env.example .env.local
-# Edit .env.local with your Supabase and OpenAI keys
-npm run dev
-```
+1. **Clone Repository**
+   ```bash
+   git clone https://github.com/mariosumali/noa.git
+   cd noa
+   ```
 
-### 3. Set up the desktop app
-```bash
-# Create config file
-echo "OPENAI_API_KEY=your_key_here
-BACKEND_URL=http://localhost:3000" > ~/.noa_config
+2. **Setup Backend**
+   ```bash
+   cd web
+   npm install
+   cp .env.example .env.local
+   # Configure Supabase, OpenAI, and Google credentials
+   npm run dev
+   ```
 
-# Open in Xcode
-open desktop/noa.xcodeproj
-# Build and run (⌘R)
-```
+3. **Setup Desktop App**
+   ```bash
+   # Create local config
+   echo "OPENAI_API_KEY=your_key_here
+   BACKEND_URL=http://localhost:3000" > ~/.noa_config
 
-### 4. Use noa
-- Look for the **noa icon** in your menu bar
-- Hold **Option (⌥)** and speak
-- Release to get your answer
-- Try: "What's on my screen?" for visual context
+   # Open workspace
+   open desktop/noa.xcodeproj
+   # Build and Run (Cmd+R)
+   ```
 
-## Screen Capture Keywords
+## Usage
 
-noa will capture your screen when you ask about:
+1. Launch `noa` from Xcode or the Applications folder.
+2. Hold **Option (⌥)** to activate the microphone.
+3. Speak your query (e.g., "Summarize this email" or "What's on my screen?").
+4. Release the key to process.
+
+**Screen Capture Triggers**:
 - "What's on my screen?"
-- "What am I looking at?"
 - "Explain this"
-- "Read this"
-- "Describe this"
-- "Help me with this"
+- "Read this text"
 
-## Tech Stack
+## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Desktop App | Swift / SwiftUI / ScreenCaptureKit |
-| Web App | Next.js 14, React, Tailwind CSS |
-| Database | Supabase (PostgreSQL) |
-| Auth | Supabase Auth |
-| AI | OpenAI GPT-4o, GPT-4 Vision, Whisper |
-| Hosting | Vercel |
+| **Core** | Swift, SwiftUI, ScreenCaptureKit |
+| **Web/API** | Next.js 14, React, TypeScript |
+| **Database** | Supabase (PostgreSQL) |
+| **AI** | GPT-4o, GPT-4 Vision, Whisper |
+| **Integrations** | Gmail API, Google OAuth |
 
 ## Project Structure
 
-```
-noa/
-├── web/                 # Next.js web application
-│   ├── app/            # App router pages
-│   ├── components/     # React components
-│   └── lib/            # Utilities and clients
-│
-├── desktop/            # Swift macOS application
-│   └── noa/           # Source files
-│
-├── README.md           # This file
-├── PLAN.md            # Architecture and design
-├── TODO.md            # Task tracking
-├── FUTURE.md          # Future features
-└── BUGS.md            # Bug tracking
-```
-
-## Development Setup
-
-For easier development, create a symlink so Xcode edits appear in git:
-```bash
-ln -s /path/to/noa/desktop ~/Desktop/noa
-```
-
-## Documentation
-
-- [PLAN.md](./PLAN.md) — Architecture and technical decisions
-- [TODO.md](./TODO.md) — Development progress
-- [FUTURE.md](./FUTURE.md) — Planned features
-- [BUGS.md](./BUGS.md) — Known issues
-
-## Status
-
-✅ **Beta** — Core functionality complete, screen capture working (requires permissions)
-
-## Known Limitations
-
-- **Screen capture permissions**: During Xcode development, macOS may prompt for screen recording permission repeatedly. For stable permissions, the app needs to be properly signed with an Apple Developer account.
+- `web/`: Next.js frontend and API backend.
+- `desktop/`: Native Swift macOS application.
+- `docs/`: Technical documentation and planning files.
 
 ## License
 
