@@ -22,6 +22,25 @@ enum OverlayPosition: String, CaseIterable {
     }
 }
 
+enum TranscriptionMode: String, CaseIterable {
+    case whisper = "whisper"
+    case appleDictation = "appleDictation"
+    
+    var displayName: String {
+        switch self {
+        case .whisper: return "Whisper (Cloud)"
+        case .appleDictation: return "Apple Dictation (Local)"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .whisper: return "More accurate, requires API key"
+        case .appleDictation: return "Instant, free, on-device"
+        }
+    }
+}
+
 enum PillColor: String, CaseIterable {
     case black = "black"
     case white = "white"
@@ -137,6 +156,12 @@ class NoaSettings: ObservableObject {
         }
     }
     
+    @Published var transcriptionMode: TranscriptionMode {
+        didSet {
+            UserDefaults.standard.set(transcriptionMode.rawValue, forKey: "transcriptionMode")
+        }
+    }
+    
     private init() {
         self.overlayOpacity = UserDefaults.standard.object(forKey: "overlayOpacity") as? Double ?? 0.88
         
@@ -164,6 +189,13 @@ class NoaSettings: ObservableObject {
             self.pillColor = color
         } else {
             self.pillColor = .black
+        }
+        
+        if let modeString = UserDefaults.standard.string(forKey: "transcriptionMode"),
+           let mode = TranscriptionMode(rawValue: modeString) {
+            self.transcriptionMode = mode
+        } else {
+            self.transcriptionMode = .whisper  // Default to Whisper for backwards compatibility
         }
     }
 }

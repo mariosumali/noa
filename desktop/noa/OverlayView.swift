@@ -92,7 +92,8 @@ struct OverlayView: View {
     }
     
     private var showResponsePanel: Bool {
-        appState.uiMode == .responding || appState.uiMode == .processing || appState.uiMode == .typing
+        appState.uiMode == .responding || appState.uiMode == .processing || appState.uiMode == .typing || 
+        (appState.uiMode == .listening && !appState.transcribedText.isEmpty)
     }
     
     // MARK: - Response Panel
@@ -136,7 +137,26 @@ struct OverlayView: View {
                 .padding(.bottom, 4)
             }
             
-            if appState.uiMode == .processing {
+            if appState.uiMode == .listening {
+                // Real-time transcription while speaking
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 8, height: 8)
+                        Text("Listening...")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    
+                    Text(appState.transcribedText)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(5)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if appState.uiMode == .processing {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.6)

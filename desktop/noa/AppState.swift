@@ -27,7 +27,9 @@ class AppState: ObservableObject {
     @Published var apiError: String?
 
     private var audioRecorder = AudioRecorder()
+    private var speechRecognizer = SpeechRecognizer()
     private var waveformTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         // Load device ID from UserDefaults or generate new one
@@ -45,83 +47,142 @@ class AppState: ObservableObject {
         aiResponse = ""
         isRecordingAudio = true
         startWaveformAnimation()
-        audioRecorder.startRecording()
+        
+        // Check which transcription mode to use
+        if NoaSettings.shared.transcriptionMode == .appleDictation {
+            // Subscribe to live transcript updates
+            speechRecognizer.$transcript
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] text in
+                    self?.transcribedText = text
+                }
+                .store(in: &cancellables)
+            
+            speechRecognizer.startTranscribing()
+        } else {
+            audioRecorder.startRecording()
+        }
     }
 
     func stopListening() {
         uiMode = .processing
         isRecordingAudio = false
         stopWaveformAnimation()
+        cancellables.removeAll()
         
-        audioRecorder.stopRecording { [weak self] audioData in
-            guard let self = self else { return }
-            
-            guard let audioData = audioData else {
-                DispatchQueue.main.async {
-                    self.aiResponse = "Error: Could not record audio."
-                    self.uiMode = .responding
-                }
-                return
-            }
-            
-            DispatchQueue.main.async {
-                self.isProcessingAPI = true
-                self.apiError = nil
-            }
-
-            Task {
-                do {
-                    let transcription = try await APIClient.shared.transcribeAudio(audioData)
-                    await MainActor.run {
-                        self.transcribedText = transcription
+        // Check which transcription mode was used
+        if NoaSettings.shared.transcriptionMode == .appleDictation {
+            // Apple Dictation mode - get transcript from SpeechRecognizer
+            speechRecognizer.stopTranscribing { [weak self] transcription in
+                guard let self = self else { return }
+                
+                if transcription.isEmpty {
+                    DispatchQueue.main.async {
+                        self.aiResponse = "Error: Could not transcribe audio."
+                        self.uiMode = .responding
                     }
-                    
-                    // Check if this is a write/transcribe command
-                    if KeyboardTyper.isWriteCommand(transcription) {
-                        let textToType = KeyboardTyper.extractTextToType(transcription)
-                        print("AppState: Write mode - copying: \(textToType)")
-                        
-                        // Copy to clipboard
-                        KeyboardTyper.typeText(textToType)
-                        
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self.transcribedText = transcription
+                    self.isProcessingAPI = true
+                    self.apiError = nil
+                }
+                
+                // Process the transcription (skip cloud transcription)
+                self.processTranscription(transcription)
+            }
+        } else {
+            // Whisper mode - use AudioRecorder + API transcription
+            audioRecorder.stopRecording { [weak self] audioData in
+                guard let self = self else { return }
+                
+                guard let audioData = audioData else {
+                    DispatchQueue.main.async {
+                        self.aiResponse = "Error: Could not record audio."
+                        self.uiMode = .responding
+                    }
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self.isProcessingAPI = true
+                    self.apiError = nil
+                }
+
+                Task {
+                    do {
+                        let transcription = try await APIClient.shared.transcribeAudio(audioData)
                         await MainActor.run {
-                            self.aiResponse = "Copied! Press ⌘V to paste:\n\"\(textToType)\""
+                            self.transcribedText = transcription
+                        }
+                        
+                        // Process the transcription
+                        self.processTranscription(transcription)
+                    } catch {
+                        await MainActor.run {
+                            self.aiResponse = "Error: \(error.localizedDescription)"
                             self.uiMode = .responding
                             self.isProcessingAPI = false
-                        }
-                        return
-                    }
-
-                    // Check if screen capture needed
-                    var screenshotBase64: String? = nil
-                    if ScreenCapture.shouldCaptureScreen(for: transcription) {
-                        print("AppState: Screen query detected, capturing...")
-                        screenshotBase64 = await ScreenCapture.captureMainScreenAsync()
-                        if screenshotBase64 != nil {
-                            print("AppState: ✅ Screenshot ready")
-                        } else {
-                            print("AppState: ⚠️ Screenshot failed")
+                            self.apiError = error.localizedDescription
+                            print("Transcription Error: \(error)")
                         }
                     }
-
-                    let response = try await APIClient.shared.processText(text: transcription, screenshot: screenshotBase64)
+                }
+            }
+        }
+    }
+    
+    /// Process the transcription text - handles write commands, screen capture, and API calls
+    private func processTranscription(_ transcription: String) {
+        Task {
+            do {
+                // Check if this is a write/transcribe command
+                if KeyboardTyper.isWriteCommand(transcription) {
+                    let textToType = KeyboardTyper.extractTextToType(transcription)
+                    print("AppState: Write mode - copying: \(textToType)")
+                    
+                    // Copy to clipboard
+                    KeyboardTyper.typeText(textToType)
                     
                     await MainActor.run {
-                        self.aiResponse = response
+                        self.aiResponse = "Copied! Press ⌘V to paste:\n\"\(textToType)\""
                         self.uiMode = .responding
                         self.isProcessingAPI = false
-                        
-                        // Speak the response if TTS is enabled
-                        TextToSpeech.shared.speak(response)
                     }
-                } catch {
-                    await MainActor.run {
-                        self.aiResponse = "Error: \(error.localizedDescription)"
-                        self.uiMode = .responding
-                        self.isProcessingAPI = false
-                        self.apiError = error.localizedDescription
-                        print("API Error: \(error)")
+                    return
+                }
+
+                // Check if screen capture needed
+                var screenshotBase64: String? = nil
+                if ScreenCapture.shouldCaptureScreen(for: transcription) {
+                    print("AppState: Screen query detected, capturing...")
+                    screenshotBase64 = await ScreenCapture.captureMainScreenAsync()
+                    if screenshotBase64 != nil {
+                        print("AppState: ✅ Screenshot ready")
+                    } else {
+                        print("AppState: ⚠️ Screenshot failed")
                     }
+                }
+
+                let response = try await APIClient.shared.processText(text: transcription, screenshot: screenshotBase64)
+                
+                await MainActor.run {
+                    self.aiResponse = response
+                    self.uiMode = .responding
+                    self.isProcessingAPI = false
+                    
+                    // Speak the response if TTS is enabled
+                    TextToSpeech.shared.speak(response)
+                }
+            } catch {
+                await MainActor.run {
+                    self.aiResponse = "Error: \(error.localizedDescription)"
+                    self.uiMode = .responding
+                    self.isProcessingAPI = false
+                    self.apiError = error.localizedDescription
+                    print("API Error: \(error)")
                 }
             }
         }

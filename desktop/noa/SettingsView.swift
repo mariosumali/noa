@@ -204,6 +204,30 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Transcription
+                SettingsSection(title: "Transcription") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Transcription Mode")
+                                .font(.system(size: 13, weight: .medium))
+                            Text(settings.transcriptionMode.description)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Picker("", selection: $settings.transcriptionMode) {
+                            ForEach(TranscriptionMode.allCases, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 200)
+                    }
+                    .padding(.vertical, 4)
+                }
+                
                 // API Configuration
                 SettingsSection(title: "Configuration") {
                     HStack {

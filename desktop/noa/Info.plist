@@ -6,5 +6,9 @@
 	<string>noa needs accessibility access to detect global keyboard shortcuts.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>noa needs screen capture access to see and analyze what's on your screen when you ask.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>noa needs microphone access to hear your voice commands.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>noa uses speech recognition to transcribe your voice commands.</string>
 </dict>
 </plist>
