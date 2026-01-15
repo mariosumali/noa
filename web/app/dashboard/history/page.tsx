@@ -1,6 +1,51 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { formatDate } from '@/lib/utils'
+
+function formatTime(dateString: string) {
+  const date = new Date(dateString)
+  return date.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true 
+  })
+}
+
+function formatDateHeader(dateString: string) {
+  const date = new Date(dateString)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'TODAY'
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'YESTERDAY'
+  } else {
+    return date.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }).toUpperCase()
+  }
+}
+
+function groupPromptsByDate(prompts: any[]) {
+  const groups: { [key: string]: any[] } = {}
+  
+  prompts.forEach(prompt => {
+    const dateKey = new Date(prompt.created_at).toDateString()
+    if (!groups[dateKey]) {
+      groups[dateKey] = []
+    }
+    groups[dateKey].push(prompt)
+  })
+  
+  return Object.entries(groups).map(([dateKey, prompts]) => ({
+    dateKey,
+    label: formatDateHeader(prompts[0].created_at),
+    prompts
+  }))
+}
 
 export default async function HistoryPage() {
   const supabaseAuth = await createSupabaseServerClient()
@@ -8,105 +53,98 @@ export default async function HistoryPage() {
   
   const { data: { user } } = await supabaseAuth.auth.getUser()
 
-  // Fetch prompts - for now, fetch all prompts for this user OR all device prompts
-  // In production, you'd link devices to users
-  let prompts = null
-  
-  if (user) {
-    // First try to get user's prompts
-    const { data: userPrompts } = await supabaseAdmin
-      .from('prompts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    
-    // Also get device prompts (prompts without user_id)
-    const { data: devicePrompts } = await supabaseAdmin
-      .from('prompts')
-      .select('*')
-      .is('user_id', null)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    
-    // Combine and sort
-    const allPrompts = [...(userPrompts || []), ...(devicePrompts || [])]
-    prompts = allPrompts
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 50)
-  }
+  // Fetch all prompts
+  const { data: allPrompts } = await supabaseAdmin
+    .from('prompts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  const prompts = allPrompts || []
+  const groupedPrompts = groupPromptsByDate(prompts)
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl mx-auto px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">History</h1>
-        <p className="text-muted">
-          Your recent prompts and responses
+        <h1 className="text-2xl font-semibold mb-1">History</h1>
+        <p className="text-sm text-muted">
+          All your prompts and responses
         </p>
       </div>
 
-      {/* Prompts list */}
-      {prompts && prompts.length > 0 ? (
-        <div className="space-y-4">
-          {prompts.map((prompt) => (
-            <div
-              key={prompt.id}
-              className="bg-card border border-card-border rounded-xl p-6"
-            >
-              {/* Prompt */}
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-8 h-8 bg-foreground/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm">You</span>
-                    <span className="text-xs text-muted">{formatDate(prompt.created_at)}</span>
-                    {prompt.screenshot_url && (
-                      <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                        Screen capture
-                      </span>
-                    )}
-                    {prompt.device_id && !prompt.user_id && (
-                      <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
-                        Desktop
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-foreground">{prompt.text}</p>
-                </div>
-              </div>
+      {/* Search (placeholder) */}
+      <div className="mb-6">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input 
+            type="text" 
+            placeholder="Search prompts..." 
+            className="w-full pl-10 pr-4 py-2.5 bg-card border border-card-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10"
+          />
+        </div>
+      </div>
 
-              {/* Response */}
-              {prompt.response && (
-                <div className="flex items-start gap-3 pl-11">
-                  <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-accent font-bold text-xs">n</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-accent">noa</span>
+      {/* Prompt History */}
+      {groupedPrompts.length > 0 ? (
+        <div className="space-y-8">
+          {groupedPrompts.map((group) => (
+            <div key={group.dateKey}>
+              <h2 className="text-xs font-medium text-muted tracking-wide mb-3">
+                {group.label}
+              </h2>
+              
+              <div className="bg-card border border-card rounded-xl overflow-hidden divide-y divide-card-border">
+                {group.prompts.map((prompt: any) => (
+                  <div key={prompt.id} className="px-5 py-4 hover:bg-hover transition-colors">
+                    <div className="flex gap-6">
+                      <span className="text-sm text-muted w-20 flex-shrink-0">
+                        {formatTime(prompt.created_at)}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground">
+                          {prompt.text}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {prompt.screenshot_url && (
+                          <span className="text-muted text-sm" title="Screen capture included">
+                            📷
+                          </span>
+                        )}
+                        {prompt.device_id && !prompt.user_id && (
+                          <span className="text-xs bg-accent-light text-muted px-2 py-0.5 rounded-full">
+                            Desktop
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-muted">{prompt.response}</p>
+                    
+                    {prompt.response && (
+                      <div className="mt-3 ml-26 pl-4 border-l-2 border-card-border">
+                        <p className="text-sm text-muted">
+                          {prompt.response}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="bg-card border border-card-border rounded-xl p-12 text-center">
-          <div className="w-16 h-16 bg-card-border rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="bg-card border border-card rounded-xl p-12 text-center">
+          <div className="w-16 h-16 bg-accent-light rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="font-semibold text-lg mb-2">No prompts yet</h3>
-          <p className="text-muted mb-6">
-            Start using noa to see your conversation history here
+          <h3 className="font-medium text-lg mb-2">No history yet</h3>
+          <p className="text-muted text-sm">
+            Your prompts will appear here
           </p>
         </div>
       )}
