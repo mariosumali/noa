@@ -5,7 +5,6 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
-    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         VStack(spacing: 0) {
@@ -42,18 +41,36 @@ struct LoginView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     
-                    SecureField("••••••••", text: $password)
+                    SecureField(isSignUp ? "Min 6 characters" : "••••••••", text: $password)
                         .textFieldStyle(.roundedBorder)
                 }
                 
+                // Error message
                 if let error = authManager.error {
-                    Text(error)
-                        .font(.system(size: 12))
-                        .foregroundColor(.red)
-                        .padding(.top, 4)
+                    HStack {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundColor(.red)
+                        Text(error)
+                            .font(.system(size: 12))
+                            .foregroundColor(.red)
+                    }
+                    .padding(.top, 4)
                 }
                 
-                Button(action: login) {
+                // Success message
+                if let message = authManager.message {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text(message)
+                            .font(.system(size: 12))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.top, 4)
+                }
+                
+                // Submit button
+                Button(action: submit) {
                     HStack {
                         if authManager.isLoading {
                             ProgressView()
@@ -65,12 +82,12 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.accentColor)
+                    .background(canSubmit ? Color.accentColor : Color.gray)
                     .foregroundColor(.white)
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
-                .disabled(authManager.isLoading || email.isEmpty || password.isEmpty)
+                .disabled(!canSubmit)
                 .padding(.top, 8)
                 
                 // Divider
@@ -93,7 +110,7 @@ struct LoginView: View {
                 Button(action: openWebLogin) {
                     HStack {
                         Image(systemName: "globe")
-                        Text("Login via Web")
+                        Text("Login via Web Browser")
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -106,14 +123,18 @@ struct LoginView: View {
             
             Spacer()
             
-            // Footer
+            // Footer - toggle between login/signup
             HStack {
                 Text(isSignUp ? "Already have an account?" : "Don't have an account?")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                 
                 Button(isSignUp ? "Login" : "Sign Up") {
-                    isSignUp.toggle()
+                    withAnimation {
+                        isSignUp.toggle()
+                        authManager.error = nil
+                        authManager.message = nil
+                    }
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .medium))
@@ -121,18 +142,28 @@ struct LoginView: View {
             }
             .padding(.bottom, 24)
         }
-        .frame(width: 400, height: 500)
+        .frame(width: 400, height: 520)
         .onChange(of: authManager.isLoggedIn) { oldValue, newValue in
             if newValue {
-                // Close window on successful login
                 NSApp.keyWindow?.close()
             }
         }
     }
     
-    private func login() {
+    private var canSubmit: Bool {
+        !authManager.isLoading && 
+        !email.isEmpty && 
+        !password.isEmpty &&
+        (isSignUp ? password.count >= 6 : true)
+    }
+    
+    private func submit() {
         Task {
-            await authManager.login(email: email, password: password)
+            if isSignUp {
+                await authManager.signup(email: email, password: password)
+            } else {
+                await authManager.login(email: email, password: password)
+            }
         }
     }
     

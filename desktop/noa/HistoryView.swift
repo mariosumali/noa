@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct PromptItem: Identifiable, Codable {
     let id: String
@@ -215,7 +216,6 @@ struct HistoryItem: View {
             return displayFormatter.string(from: date)
         }
         
-        // Try without fractional seconds
         formatter.formatOptions = [.withInternetDateTime]
         if let date = formatter.date(from: dateString) {
             let displayFormatter = DateFormatter()
