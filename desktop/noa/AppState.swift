@@ -18,7 +18,6 @@ class AppState: ObservableObject {
     @Published var errorMessage: String?
     
     private var audioRecorder: AudioRecorder?
-    private var cancellables = Set<AnyCancellable>()
     
     private init() {
         audioRecorder = AudioRecorder()
@@ -26,10 +25,7 @@ class AppState: ObservableObject {
     }
     
     func startListening() {
-        guard mode == .idle else { 
-            print("AppState: Can't start listening - mode is \(mode)")
-            return 
-        }
+        guard mode == .idle else { return }
         
         print("AppState: Starting to listen...")
         mode = .listening
@@ -41,10 +37,7 @@ class AppState: ObservableObject {
     }
     
     func stopListening() {
-        guard mode == .listening else { 
-            print("AppState: Can't stop listening - mode is \(mode)")
-            return 
-        }
+        guard mode == .listening else { return }
         
         print("AppState: Stopping listening, starting processing...")
         mode = .processing
@@ -70,28 +63,31 @@ class AppState: ObservableObject {
             do {
                 print("AppState: Transcribing audio...")
                 
-                // First, transcribe the audio to get the text
+                // Transcribe the audio
                 let transcribedText = try await APIClient.shared.transcribeAudio(audioData)
                 
                 await MainActor.run {
                     self.transcribedText = transcribedText
                 }
                 
-                print("AppState: Transcribed: \(transcribedText)")
+                print("AppState: Transcribed: \"\(transcribedText)\"")
                 
                 // Check if we need to capture screen
                 var screenshot: String? = nil
-                if ScreenCapture.shouldCaptureScreen(for: transcribedText) {
-                    print("AppState: Screen-related query detected, capturing screen...")
+                let shouldCapture = ScreenCapture.shouldCaptureScreen(for: transcribedText)
+                print("AppState: Should capture screen? \(shouldCapture) (query: \"\(transcribedText)\")")
+                
+                if shouldCapture {
+                    print("AppState: Capturing screen...")
                     screenshot = await ScreenCapture.captureMainScreenAsync()
                     if screenshot != nil {
-                        print("AppState: Screenshot captured successfully")
+                        print("AppState: ✅ Screenshot captured successfully (\(screenshot!.count / 1024) KB)")
                     } else {
-                        print("AppState: Screenshot capture failed (permission may be needed)")
+                        print("AppState: ❌ Screenshot capture failed")
                     }
                 }
                 
-                // Send to backend for AI processing
+                // Send to backend
                 print("AppState: Sending to backend...")
                 let response = try await APIClient.shared.processText(
                     text: transcribedText,
