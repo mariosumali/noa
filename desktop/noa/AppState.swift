@@ -22,11 +22,16 @@ class AppState: ObservableObject {
     
     private init() {
         audioRecorder = AudioRecorder()
+        print("AppState initialized")
     }
     
     func startListening() {
-        guard mode == .idle else { return }
+        guard mode == .idle else { 
+            print("AppState: Can't start listening - mode is \(mode)")
+            return 
+        }
         
+        print("AppState: Starting to listen...")
         mode = .listening
         transcribedText = ""
         responseText = ""
@@ -36,52 +41,65 @@ class AppState: ObservableObject {
     }
     
     func stopListening() {
-        guard mode == .listening else { return }
+        guard mode == .listening else { 
+            print("AppState: Can't stop listening - mode is \(mode)")
+            return 
+        }
         
+        print("AppState: Stopping listening, starting processing...")
         mode = .processing
         
         audioRecorder?.stopRecording { [weak self] audioData in
-            guard let self = self, let audioData = audioData else {
-                self?.mode = .idle
-                self?.errorMessage = "Failed to record audio"
-                return
-            }
+            guard let self = self else { return }
             
-            self.processAudio(audioData)
+            if let audioData = audioData {
+                print("AppState: Got audio data: \(audioData.count) bytes")
+                self.processAudio(audioData)
+            } else {
+                print("AppState: No audio data received")
+                DispatchQueue.main.async {
+                    self.mode = .idle
+                    self.errorMessage = "Failed to record audio"
+                }
+            }
         }
     }
     
     private func processAudio(_ audioData: Data) {
-        Task { @MainActor in
+        Task {
             do {
-                // Check if user mentioned "screen"
-                let includeScreen = true // For MVP, always include screen
+                print("AppState: Calling API...")
                 
-                var screenshot: String? = nil
-                if includeScreen {
-                    screenshot = ScreenCapture.captureMainScreen()
-                }
+                // Skip screenshot for now - it was causing deadlock
+                let screenshot: String? = nil
                 
-                // Send to backend
+                // Send to API
                 let response = try await APIClient.shared.process(
                     audioData: audioData,
                     screenshot: screenshot
                 )
                 
-                self.transcribedText = response.transcribedText
-                self.responseText = response.response
-                self.mode = .responding
+                print("AppState: Got response!")
+                await MainActor.run {
+                    self.transcribedText = response.transcribedText
+                    self.responseText = response.response
+                    self.mode = .responding
+                }
                 
-                // Auto-hide after 10 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                // Auto-hide after 15 seconds
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                await MainActor.run {
                     if self.mode == .responding {
                         self.mode = .idle
                     }
                 }
                 
             } catch {
-                self.errorMessage = error.localizedDescription
-                self.mode = .idle
+                print("AppState: Error - \(error.localizedDescription)")
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.mode = .idle
+                }
             }
         }
     }

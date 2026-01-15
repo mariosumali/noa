@@ -2,136 +2,174 @@ import SwiftUI
 
 struct OverlayView: View {
     @ObservedObject var appState = AppState.shared
+    @State private var waveformPhase: CGFloat = 0
+    
+    private var isExpanded: Bool {
+        appState.mode != .idle
+    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Main content
-            VStack(spacing: 12) {
-                // Status indicator
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 8, height: 8)
-                        .animation(.easeInOut(duration: 0.3), value: appState.mode)
-                    
-                    Text(statusText)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    // Logo
-                    Text("noa")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+        VStack {
+            Spacer()
+            
+            Group {
+                if isExpanded {
+                    expandedView
+                } else {
+                    collapsedView
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                
-                // Content area
-                VStack(alignment: .leading, spacing: 8) {
-                    if !appState.transcribedText.isEmpty {
-                        Text(appState.transcribedText)
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    if !appState.responseText.isEmpty {
-                        Divider()
-                            .padding(.vertical, 4)
-                        
-                        Text(appState.responseText)
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineLimit(6)
-                    }
-                    
-                    if let error = appState.errorMessage {
-                        Text(error)
-                            .font(.system(size: 12))
-                            .foregroundColor(.red)
-                    }
-                    
-                    if appState.mode == .idle && appState.transcribedText.isEmpty {
-                        Text("Hold ⌥ Option to speak")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 20)
-                    }
-                    
-                    if appState.mode == .listening {
-                        HStack(spacing: 4) {
-                            ForEach(0..<5) { i in
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.orange)
-                                    .frame(width: 4, height: CGFloat.random(in: 8...24))
-                                    .animation(
-                                        .easeInOut(duration: 0.3)
-                                        .repeatForever()
-                                        .delay(Double(i) * 0.1),
-                                        value: appState.mode
-                                    )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 16)
-                    }
-                    
-                    if appState.mode == .processing {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 16)
-                    }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isExpanded)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: appState.mode)
+    }
+    
+    // MARK: - Collapsed State (tiny pill)
+    private var collapsedView: some View {
+        Capsule()
+            .fill(Color.black.opacity(0.85))
+            .frame(width: 80, height: 24)
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+    }
+    
+    // MARK: - Expanded State
+    private var expandedView: some View {
+        VStack(spacing: 10) {
+            // Content based on mode
+            Group {
+                if appState.mode == .listening {
+                    listeningView
+                } else if appState.mode == .processing {
+                    processingView
+                } else if appState.mode == .responding {
+                    respondingView
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+            }
+            
+            // Error message
+            if let error = appState.errorMessage {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundColor(.red.opacity(0.9))
             }
         }
-        .frame(width: 380, minHeight: 80)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(width: expandedWidth)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+            Capsule()
+                .fill(Color.black.opacity(0.9))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            Capsule()
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
         )
+        .shadow(color: .black.opacity(0.4), radius: 15, y: 6)
     }
     
-    var statusColor: Color {
+    private var expandedWidth: CGFloat {
         switch appState.mode {
-        case .idle:
-            return .gray
-        case .listening:
-            return .orange
-        case .processing:
-            return .blue
-        case .responding:
-            return .green
+        case .idle: return 80
+        case .listening: return 200
+        case .processing: return 160
+        case .responding: return 320
         }
     }
     
-    var statusText: String {
-        switch appState.mode {
-        case .idle:
-            return "Ready"
-        case .listening:
-            return "Listening..."
-        case .processing:
-            return "Processing..."
-        case .responding:
-            return "Done"
+    // MARK: - Listening View with Waveform
+    private var listeningView: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<16, id: \.self) { i in
+                WaveformBar(
+                    index: i,
+                    phase: waveformPhase,
+                    isActive: appState.mode == .listening
+                )
+            }
         }
+        .frame(height: 24)
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                waveformPhase = .pi * 2
+            }
+        }
+        .onDisappear {
+            waveformPhase = 0
+        }
+    }
+    
+    // MARK: - Processing View
+    private var processingView: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .scaleEffect(0.6)
+                .tint(.white)
+            
+            Text("Processing...")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .frame(height: 24)
+    }
+    
+    // MARK: - Responding View
+    private var respondingView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !appState.transcribedText.isEmpty {
+                Text(appState.transcribedText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
+            
+            Text(appState.responseText)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(5)
+        }
+    }
+}
+
+// MARK: - Waveform Bar
+struct WaveformBar: View {
+    let index: Int
+    let phase: CGFloat
+    let isActive: Bool
+    
+    private var animatedHeight: CGFloat {
+        let baseHeight: CGFloat = 3
+        let maxHeight: CGFloat = 20
+        let frequency = 0.7
+        let phaseOffset = CGFloat(index) * 0.4
+        
+        let wave = sin(phase * frequency + phaseOffset)
+        let normalizedWave = (wave + 1) / 2
+        
+        return baseHeight + (maxHeight - baseHeight) * normalizedWave
+    }
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(
+                LinearGradient(
+                    colors: [.white.opacity(0.9), .white.opacity(0.4)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: 2, height: isActive ? animatedHeight : 3)
+            .animation(.easeInOut(duration: 0.08), value: animatedHeight)
     }
 }
 
 #Preview {
     OverlayView()
-        .frame(width: 400, height: 200)
-        .background(Color.black)
+        .frame(width: 400, height: 100)
+        .background(Color.gray)
 }

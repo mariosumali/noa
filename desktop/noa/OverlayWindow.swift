@@ -2,36 +2,49 @@ import SwiftUI
 import AppKit
 
 class OverlayWindow: NSWindow {
+    
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
+            contentRect: NSRect(x: 0, y: 0, width: 350, height: 80),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
         
-        // Configure window
+        // Window configuration
         self.isOpaque = false
         self.backgroundColor = .clear
+        self.hasShadow = false
         self.level = .floating
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        self.hasShadow = true
-        self.isMovableByWindowBackground = true
+        self.isMovableByWindowBackground = false
+        self.ignoresMouseEvents = true
+        
+        // Set up the SwiftUI content
+        let hostingView = NSHostingView(rootView: OverlayView())
+        hostingView.frame = self.contentView?.bounds ?? .zero
+        hostingView.autoresizingMask = [.width, .height]
+        self.contentView = hostingView
         
         // Position at bottom center of screen
-        positionAtBottomCenter()
+        positionWindow()
         
-        // Set SwiftUI content
-        self.contentView = NSHostingView(rootView: OverlayView())
+        // Listen for screen changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenDidChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
     
-    func positionAtBottomCenter() {
+    private func positionWindow() {
         guard let screen = NSScreen.main else { return }
         
         let screenFrame = screen.visibleFrame
-        let windowWidth: CGFloat = 400
-        let windowHeight: CGFloat = 200
-        let bottomMargin: CGFloat = 40
+        let windowWidth: CGFloat = 350
+        let windowHeight: CGFloat = 80
+        let bottomMargin: CGFloat = 24
         
         let x = screenFrame.midX - (windowWidth / 2)
         let y = screenFrame.minY + bottomMargin
@@ -39,6 +52,11 @@ class OverlayWindow: NSWindow {
         self.setFrame(NSRect(x: x, y: y, width: windowWidth, height: windowHeight), display: true)
     }
     
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    @objc private func screenDidChange() {
+        positionWindow()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
