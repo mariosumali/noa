@@ -197,6 +197,7 @@ struct HistoryItem: View {
                 .padding(.leading, 30)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(Color.primary.opacity(0.02))
         .cornerRadius(8)
