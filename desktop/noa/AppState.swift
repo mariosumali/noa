@@ -1,7 +1,8 @@
 import Foundation
+import SwiftUI
 import Combine
 
-enum AppMode {
+enum UIMode {
     case idle
     case listening
     case processing
@@ -9,119 +10,126 @@ enum AppMode {
 }
 
 class AppState: ObservableObject {
-    static let shared = AppState()
-    
-    @Published var mode: AppMode = .idle
+    @Published var uiMode: UIMode = .idle
     @Published var transcribedText: String = ""
-    @Published var responseText: String = ""
-    @Published var isVisible: Bool = true
-    @Published var errorMessage: String?
-    
-    private var audioRecorder: AudioRecorder?
-    
-    private init() {
-        audioRecorder = AudioRecorder()
-        print("AppState initialized")
+    @Published var aiResponse: String = ""
+    @Published var userId: String?
+    @Published var deviceId: String = UUID().uuidString
+    @Published var showLoginWindow: Bool = false
+    @Published var showSettingsWindow: Bool = false
+    @Published var showHistoryWindow: Bool = false
+    @Published var waveformAmplitudes: [CGFloat] = Array(repeating: 0.1, count: 16)
+    @Published var isRecordingAudio: Bool = false
+    @Published var isProcessingAPI: Bool = false
+    @Published var apiError: String?
+
+    private var audioRecorder = AudioRecorder()
+    private var apiClient = APIClient()
+    private var cancellables = Set<AnyCancellable>()
+    private var waveformTimer: Timer?
+
+    init() {
+        if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
+            self.deviceId = savedDeviceId
+        } else {
+            UserDefaults.standard.set(self.deviceId, forKey: "deviceId")
+        }
+        
+        audioRecorder.$isRecording
+            .assign(to: \.isRecordingAudio, on: self)
+            .store(in: &cancellables)
     }
-    
+
     func startListening() {
-        guard mode == .idle else { return }
-        
-        print("AppState: Starting to listen...")
-        mode = .listening
+        uiMode = .listening
         transcribedText = ""
-        responseText = ""
-        errorMessage = nil
-        
-        audioRecorder?.startRecording()
+        aiResponse = ""
+        startWaveformAnimation()
+        audioRecorder.startRecording()
     }
-    
+
     func stopListening() {
-        guard mode == .listening else { return }
+        uiMode = .processing
+        stopWaveformAnimation()
         
-        print("AppState: Stopping listening, starting processing...")
-        mode = .processing
-        
-        audioRecorder?.stopRecording { [weak self] audioData in
+        audioRecorder.stopRecording { [weak self] audioData in
             guard let self = self else { return }
             
-            if let audioData = audioData {
-                print("AppState: Got audio data: \(audioData.count) bytes")
-                self.processAudio(audioData)
-            } else {
-                print("AppState: No audio data received")
+            guard let audioData = audioData else {
                 DispatchQueue.main.async {
-                    self.mode = .idle
-                    self.errorMessage = "Failed to record audio"
+                    self.aiResponse = "Error: Could not record audio."
+                    self.uiMode = .responding
                 }
+                return
             }
-        }
-    }
-    
-    private func processAudio(_ audioData: Data) {
-        Task {
-            do {
-                print("AppState: Transcribing audio...")
-                
-                // Transcribe the audio
-                let transcribedText = try await APIClient.shared.transcribeAudio(audioData)
-                
-                await MainActor.run {
-                    self.transcribedText = transcribedText
-                }
-                
-                print("AppState: Transcribed: \"\(transcribedText)\"")
-                
-                // Check if we need to capture screen
-                var screenshot: String? = nil
-                let shouldCapture = ScreenCapture.shouldCaptureScreen(for: transcribedText)
-                print("AppState: Should capture screen? \(shouldCapture) (query: \"\(transcribedText)\")")
-                
-                if shouldCapture {
-                    print("AppState: Capturing screen...")
-                    screenshot = await ScreenCapture.captureMainScreenAsync()
-                    if screenshot != nil {
-                        print("AppState: ✅ Screenshot captured successfully (\(screenshot!.count / 1024) KB)")
-                    } else {
-                        print("AppState: ❌ Screenshot capture failed")
+            
+            self.isProcessingAPI = true
+            self.apiError = nil
+
+            Task {
+                do {
+                    let transcription = try await self.apiClient.transcribeAudio(audioData: audioData)
+                    await MainActor.run {
+                        self.transcribedText = transcription
                     }
-                }
-                
-                // Send to backend
-                print("AppState: Sending to backend...")
-                let response = try await APIClient.shared.processText(
-                    text: transcribedText,
-                    screenshot: screenshot
-                )
-                
-                print("AppState: Got response!")
-                await MainActor.run {
-                    self.responseText = response
-                    self.mode = .responding
-                }
-                
-                // Auto-hide after 20 seconds
-                try? await Task.sleep(nanoseconds: 20_000_000_000)
-                await MainActor.run {
-                    if self.mode == .responding {
-                        self.mode = .idle
+
+                    // Check if screen capture needed
+                    var screenshotBase64: String? = nil
+                    if ScreenCapture.shouldCaptureScreen(for: transcription) {
+                        print("AppState: Screen query detected, capturing...")
+                        screenshotBase64 = await ScreenCapture.captureMainScreenAsync()
+                        if screenshotBase64 != nil {
+                            print("AppState: ✅ Screenshot ready")
+                        } else {
+                            print("AppState: ⚠️ Screenshot failed")
+                        }
                     }
-                }
-                
-            } catch {
-                print("AppState: Error - \(error.localizedDescription)")
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.mode = .idle
+
+                    let response = try await self.apiClient.processPrompt(
+                        userId: self.userId,
+                        deviceId: self.deviceId,
+                        text: transcription,
+                        screenshot: screenshotBase64
+                    )
+                    
+                    await MainActor.run {
+                        self.aiResponse = response
+                        self.uiMode = .responding
+                        self.isProcessingAPI = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.aiResponse = "Error: \(error.localizedDescription)"
+                        self.uiMode = .responding
+                        self.isProcessingAPI = false
+                        self.apiError = error.localizedDescription
+                        print("API Error: \(error)")
+                    }
                 }
             }
         }
     }
     
     func reset() {
-        mode = .idle
+        uiMode = .idle
         transcribedText = ""
-        responseText = ""
-        errorMessage = nil
+        aiResponse = ""
+        apiError = nil
+    }
+
+    private func startWaveformAnimation() {
+        waveformTimer?.invalidate()
+        waveformTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.waveformAmplitudes = (0..<16).map { _ in CGFloat.random(in: 0.1...1.0) }
+            }
+        }
+    }
+
+    private func stopWaveformAnimation() {
+        waveformTimer?.invalidate()
+        waveformTimer = nil
+        waveformAmplitudes = Array(repeating: 0.1, count: 16)
     }
 }
