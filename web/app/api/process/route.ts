@@ -265,6 +265,7 @@ export async function POST(request: NextRequest) {
     const combinedContext = [calendarContext, emailContext].filter(Boolean).join('\n\n---\n\n')
 
     if (screenshot) {
+      toolsUsed.push('screen_capture')
       console.log(`Processing with vision - text: "${text.substring(0, 50)}...", screenshot: ${Math.round(screenshot.length / 1024)} KB`)
       response = await processPromptWithScreen(text, screenshot)
     } else if (combinedContext) {
